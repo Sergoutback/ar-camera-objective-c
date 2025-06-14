@@ -1,0 +1,6 @@
+framework module Pods_ar_camera_objective_cTests {
+  umbrella header "Pods-ar-camera-objective-cTests-umbrella.h"
+
+  export *
+  module * { export * }
+}
