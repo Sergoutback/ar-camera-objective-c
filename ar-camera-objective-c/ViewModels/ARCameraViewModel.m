@@ -1,4 +1,6 @@
 #import "ARCameraViewModel.h"
+#import "../Services/ARService/ARServiceProtocol.h"
+#import <simd/simd.h>
 
 @interface ARCameraViewModel ()
 
@@ -47,27 +49,56 @@
         
         [self.motionService getCurrentMotionWithCompletion:^(CMDeviceMotion * _Nullable motion, NSError * _Nullable motionError) {
             [self.locationService getCurrentLocationWithCompletion:^(CLLocation * _Nullable location, NSError * _Nullable locationError) {
-                
                 NSMutableDictionary *metadata = [NSMutableDictionary dictionary];
                 
+                // ARKit metadata
+                simd_float4x4 transform = [self.arService currentCameraTransform];
+                matrix_float3x3 intrinsics = [self.arService currentCameraIntrinsics];
+                simd_float3 eulerAngles = [self.arService currentCameraEulerAngles];
+                NSTimeInterval arTimestamp = [self.arService currentFrameTimestamp];
+                
+                metadata[@"arTransform"] = @[@[@(transform.columns[0][0]), @(transform.columns[0][1]), @(transform.columns[0][2]), @(transform.columns[0][3])],
+                                               @[@(transform.columns[1][0]), @(transform.columns[1][1]), @(transform.columns[1][2]), @(transform.columns[1][3])],
+                                               @[@(transform.columns[2][0]), @(transform.columns[2][1]), @(transform.columns[2][2]), @(transform.columns[2][3])],
+                                               @[@(transform.columns[3][0]), @(transform.columns[3][1]), @(transform.columns[3][2]), @(transform.columns[3][3])]];
+                metadata[@"arIntrinsics"] = @[@[@(intrinsics.columns[0][0]), @(intrinsics.columns[0][1]), @(intrinsics.columns[0][2])],
+                                                @[@(intrinsics.columns[1][0]), @(intrinsics.columns[1][1]), @(intrinsics.columns[1][2])],
+                                                @[@(intrinsics.columns[2][0]), @(intrinsics.columns[2][1]), @(intrinsics.columns[2][2])]];
+                metadata[@"arEulerAngles"] = @[@(eulerAngles.x), @(eulerAngles.y), @(eulerAngles.z)];
+                metadata[@"arTimestamp"] = @(arTimestamp);
+                
+                // Motion metadata
                 if (motion) {
-                    metadata[@"motion"] = @{
-                        @"attitude": @{
-                            @"pitch": @(motion.attitude.pitch),
-                            @"roll": @(motion.attitude.roll),
-                            @"yaw": @(motion.attitude.yaw)
-                        }
-                    };
+                    metadata[@"gyroRotationRate"] = @[@(motion.rotationRate.x), @(motion.rotationRate.y), @(motion.rotationRate.z)];
+                    metadata[@"gyroAttitude"] = @[@(motion.attitude.pitch), @(motion.attitude.roll), @(motion.attitude.yaw)];
+                } else {
+                    metadata[@"gyroRotationRate"] = [NSNull null];
+                    metadata[@"gyroAttitude"] = [NSNull null];
                 }
                 
+                // Location metadata
                 if (location) {
-                    metadata[@"location"] = @{
-                        @"latitude": @(location.coordinate.latitude),
-                        @"longitude": @(location.coordinate.longitude),
-                        @"altitude": @(location.altitude),
-                        @"timestamp": location.timestamp
-                    };
+                    metadata[@"latitude"] = @(location.coordinate.latitude);
+                    metadata[@"longitude"] = @(location.coordinate.longitude);
+                    metadata[@"altitude"] = @(location.altitude);
+                } else {
+                    metadata[@"latitude"] = [NSNull null];
+                    metadata[@"longitude"] = [NSNull null];
+                    metadata[@"altitude"] = [NSNull null];
                 }
+                
+                // Timestamp
+                metadata[@"timestamp"] = @([[NSDate date] timeIntervalSince1970]);
+                
+                // Остальные поля для совместимости
+                metadata[@"relativeGyroAttitude"] = [NSNull null];
+                metadata[@"relativeEulerAngles"] = [NSNull null];
+                metadata[@"relativePosition"] = [NSNull null];
+                metadata[@"gyroEulerAngles"] = [NSNull null];
+                metadata[@"focalLength"] = [NSNull null];
+                metadata[@"sensorSize"] = [NSNull null];
+                metadata[@"resolution"] = [NSNull null];
+                metadata[@"principalPoint"] = [NSNull null];
                 
                 [self.photoMetaArray addObject:metadata];
                 self.photoCount++;

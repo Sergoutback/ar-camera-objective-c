@@ -3,6 +3,8 @@
 
 @interface PhotoService ()
 @property (nonatomic, strong) NSMutableDictionary *photoCache;
+@property (nonatomic, strong) NSMutableArray *allPhotoMetadata;
+@property (nonatomic, strong) NSString *sessionId;
 @end
 
 @implementation PhotoService
@@ -11,6 +13,8 @@
     self = [super init];
     if (self) {
         self.photoCache = [NSMutableDictionary dictionary];
+        self.allPhotoMetadata = [NSMutableArray array];
+        self.sessionId = [[NSUUID UUID] UUIDString];
         
         // Create metadata directory if it doesn't exist
         NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
@@ -63,6 +67,16 @@
         // Cache the image
         self.photoCache[photoId] = image;
         
+        // Form extended metadata
+        NSMutableDictionary *meta = [metadata mutableCopy] ?: [NSMutableDictionary dictionary];
+        meta[@"photoId"] = photoId;
+        meta[@"sessionId"] = self.sessionId;
+        meta[@"width"] = @(image.size.width);
+        meta[@"height"] = @(image.size.height);
+        meta[@"path"] = [NSString stringWithFormat:@"PNG/%@.png", photoId];
+        meta[@"quality"] = @(0.8); // if JPEG, otherwise null
+        [self.allPhotoMetadata addObject:meta];
+        
         // Save metadata to JSON file
         if (metadata) {
             NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
@@ -89,9 +103,11 @@
             PHAssetCreationRequest *request = [PHAssetCreationRequest creationRequestForAssetFromImage:image];
             
             // Add location metadata if available
-            if (metadata[@"location"]) {
-                CLLocation *location = [[CLLocation alloc] initWithLatitude:[metadata[@"location"][@"latitude"] doubleValue]
-                                                                longitude:[metadata[@"location"][@"longitude"] doubleValue]];
+            id latValue = meta[@"latitude"];
+            id lonValue = meta[@"longitude"];
+            if (latValue && lonValue && latValue != [NSNull null] && lonValue != [NSNull null]) {
+                CLLocation *location = [[CLLocation alloc] initWithLatitude:[latValue doubleValue]
+                                                                longitude:[lonValue doubleValue]];
                 request.location = location;
             }
             
@@ -194,6 +210,13 @@
             NSData *heicData = UIImageJPEGRepresentation(image, 0.8);
             [heicData writeToFile:heicPath atomically:YES];
         });
+    }
+    
+    // Save session.json
+    NSString *jsonPath = [tempDir stringByAppendingPathComponent:@"session.json"];
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:self.allPhotoMetadata options:NSJSONWritingPrettyPrinted error:&error];
+    if (jsonData) {
+        [jsonData writeToFile:jsonPath atomically:YES];
     }
     
     dispatch_group_notify(group, dispatch_get_main_queue(), ^{

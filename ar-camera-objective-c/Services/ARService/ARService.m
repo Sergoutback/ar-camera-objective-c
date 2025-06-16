@@ -1,4 +1,5 @@
 #import "ARService.h"
+#import <simd/simd.h>
 
 @interface ARService ()
 
@@ -78,6 +79,30 @@
 
 - (void)sessionInterruptionEnded:(ARSession *)session {
     // Handle session interruption ended
+}
+
+- (ARFrame *)currentFrame {
+    return self.sceneView.session.currentFrame;
+}
+
+- (simd_float4x4)currentCameraTransform {
+    ARFrame *frame = [self currentFrame];
+    return frame ? frame.camera.transform : matrix_identity_float4x4;
+}
+
+- (simd_float3)currentCameraEulerAngles {
+    ARFrame *frame = [self currentFrame];
+    return frame ? frame.camera.eulerAngles : (simd_float3){0,0,0};
+}
+
+- (matrix_float3x3)currentCameraIntrinsics {
+    ARFrame *frame = [self currentFrame];
+    return frame ? frame.camera.intrinsics : (matrix_float3x3){{{0,0,0},{0,0,0},{0,0,0}}};
+}
+
+- (NSTimeInterval)currentFrameTimestamp {
+    ARFrame *frame = [self currentFrame];
+    return frame ? frame.timestamp : 0;
 }
 
 @end 

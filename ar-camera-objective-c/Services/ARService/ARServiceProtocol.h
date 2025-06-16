@@ -13,6 +13,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)pauseARSession;
 - (void)resetARSession;
 - (void)capturePhotoWithCompletion:(void (^)(UIImage * _Nullable image, NSError * _Nullable error))completion;
+- (simd_float4x4)currentCameraTransform;
+- (matrix_float3x3)currentCameraIntrinsics;
+- (simd_float3)currentCameraEulerAngles;
+- (NSTimeInterval)currentFrameTimestamp;
 
 @end
 
