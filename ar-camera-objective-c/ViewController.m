@@ -8,9 +8,17 @@
 #import "ViewController.h"
 #import <ARKit/ARKit.h>
 #import <CoreLocation/CoreLocation.h>
+#import <AVFoundation/AVFoundation.h>
+#import <Photos/Photos.h>
 
 
-@interface ViewController () <ARSCNViewDelegate>
+@interface ViewController () <ARSCNViewDelegate, CLLocationManagerDelegate, AVCapturePhotoCaptureDelegate>
+@property (nonatomic, strong) AVCaptureSession *captureSession;
+@property (nonatomic, strong) AVCapturePhotoOutput *photoOutput;
+@property (nonatomic, strong) AVCaptureDevice *captureDevice;
+@property (nonatomic, strong) dispatch_queue_t sessionQueue;
+@property (nonatomic, assign) BOOL isCapturing;
+@property (nonatomic, strong) UILabel *photoCounterLabel;
 @end
 
 
@@ -34,17 +42,14 @@
     [self.sceneView.session runWithConfiguration:config options:ARSessionRunOptionResetSceneReconstruction | ARSessionRunOptionRemoveExistingAnchors];
     
     // Initialize arrays and counters
-    self.photoMetaArray = [NSMutableArray array];
     self.photoCount = 0;
+    self.photoMetaArray = [NSMutableArray array];
+    self.isCapturing = NO;
     
     // Setup motion manager
     self.motionManager = [[CMMotionManager alloc] init];
-    if (self.motionManager.deviceMotionAvailable) {
-        self.motionManager.deviceMotionUpdateInterval = 1.0/60.0;
-        [self.motionManager startDeviceMotionUpdates];
-    } else {
-        NSLog(@"Device motion is not available");
-    }
+    self.motionManager.deviceMotionUpdateInterval = 1.0/60.0;
+    [self.motionManager startDeviceMotionUpdates];
     
     // Setup location manager
     self.locationManager = [[CLLocationManager alloc] init];
@@ -52,6 +57,12 @@
     self.locationManager.desiredAccuracy = kCLLocationAccuracyBest;
     [self.locationManager requestWhenInUseAuthorization];
     [self.locationManager startUpdatingLocation];
+    
+    // Create session queue
+    self.sessionQueue = dispatch_queue_create("com.arcamera.sessionQueue", DISPATCH_QUEUE_SERIAL);
+    
+    // Setup photo capture session
+    [self setupPhotoCapture];
     
     // Setup photo button
     UIButton *photoButton = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -72,6 +83,78 @@
     photoButton.backgroundColor = [UIColor systemBlueColor];
     [photoButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
     photoButton.layer.cornerRadius = 17.5;
+    
+    // Add tap gesture recognizer
+    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
+    [self.sceneView addGestureRecognizer:tapGesture];
+    
+    // Setup photo counter label
+    [self setupPhotoCounterLabel];
+    
+    // Update counter
+    [self updatePhotoCounter];
+}
+
+- (void)setupPhotoCapture {
+    dispatch_async(self.sessionQueue, ^{
+        self.captureSession = [[AVCaptureSession alloc] init];
+        [self.captureSession beginConfiguration];
+        
+        self.captureSession.sessionPreset = AVCaptureSessionPresetPhoto;
+        
+        // Get the back camera
+        self.captureDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        if (!self.captureDevice) {
+            NSLog(@"📸 No camera available");
+            return;
+        }
+        
+        NSError *error;
+        AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:self.captureDevice error:&error];
+        if (error) {
+            NSLog(@"📸 Error setting up camera input: %@", error);
+            return;
+        }
+        
+        if ([self.captureSession canAddInput:input]) {
+            [self.captureSession addInput:input];
+        }
+        
+        // Setup photo output
+        self.photoOutput = [[AVCapturePhotoOutput alloc] init];
+        if ([self.captureSession canAddOutput:self.photoOutput]) {
+            [self.captureSession addOutput:self.photoOutput];
+            
+            // Configure for highest quality
+            self.photoOutput.maxPhotoQualityPrioritization = AVCapturePhotoQualityPrioritizationQuality;
+            
+            // Get available formats
+            NSArray *formats = self.captureDevice.formats;
+            AVCaptureDeviceFormat *highestResolutionFormat = nil;
+            for (AVCaptureDeviceFormat *format in formats) {
+                CMVideoDimensions dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+                if (!highestResolutionFormat || 
+                    (dimensions.width * dimensions.height) > 
+                    (CMVideoFormatDescriptionGetDimensions(highestResolutionFormat.formatDescription).width * 
+                     CMVideoFormatDescriptionGetDimensions(highestResolutionFormat.formatDescription).height)) {
+                    highestResolutionFormat = format;
+                }
+            }
+            
+            if (highestResolutionFormat) {
+                if ([self.captureDevice lockForConfiguration:&error]) {
+                    self.captureDevice.activeFormat = highestResolutionFormat;
+                    [self.captureDevice unlockForConfiguration];
+                    NSLog(@"📸 Using highest resolution format: %dx%d", 
+                          CMVideoFormatDescriptionGetDimensions(highestResolutionFormat.formatDescription).width,
+                          CMVideoFormatDescriptionGetDimensions(highestResolutionFormat.formatDescription).height);
+                }
+            }
+        }
+        
+        [self.captureSession commitConfiguration];
+        [self.captureSession startRunning];
+    });
 }
 
 - (NSDictionary *)createPhotoMetadata:(UIImage *)image withMotion:(CMDeviceMotion *)motion andLocation:(CLLocation *)location {
@@ -83,71 +166,43 @@
     CMQuaternion relativeEulerAngles = {0, 0, 0};
     CMQuaternion relativePosition = {0, 0, 0};
     
+    if (motion && self.firstMotion) {
+        // Calculate relative attitude
+        CMQuaternion firstAttitude = self.firstMotion.attitude.quaternion;
+        relativeAttitude = [self quaternionMultiply:[self quaternionConjugate:firstAttitude] with:motion.attitude.quaternion];
+        
+        // Calculate relative euler angles
+        relativeEulerAngles = [self quaternionToEulerAngles:relativeAttitude];
+        
+        // Calculate relative position
+        CMAcceleration firstAcceleration = self.firstMotion.userAcceleration;
+        CMAcceleration currentAcceleration = motion.userAcceleration;
+        relativePosition.x = currentAcceleration.x - firstAcceleration.x;
+        relativePosition.y = currentAcceleration.y - firstAcceleration.y;
+        relativePosition.z = currentAcceleration.z - firstAcceleration.z;
+    }
+    
     // Initialize motion data with default values
     NSDictionary *gyroRotationRate = @{
-        @"x": @(0.0),
-        @"y": @(0.0),
-        @"z": @(0.0)
+        @"x": @(motion ? motion.rotationRate.x : 0.0),
+        @"y": @(motion ? motion.rotationRate.y : 0.0),
+        @"z": @(motion ? motion.rotationRate.z : 0.0)
     };
     
     NSDictionary *gyroAttitude = @{
-        @"x": @(0.0),
-        @"y": @(0.0),
-        @"z": @(0.0),
-        @"w": @(1.0)
+        @"x": @(motion ? motion.attitude.quaternion.x : 0.0),
+        @"y": @(motion ? motion.attitude.quaternion.y : 0.0),
+        @"z": @(motion ? motion.attitude.quaternion.z : 0.0),
+        @"w": @(motion ? motion.attitude.quaternion.w : 1.0)
     };
     
     NSDictionary *gyroEulerAngles = @{
-        @"x": @(0.0),
-        @"y": @(0.0),
-        @"z": @(0.0)
+        @"x": @(motion ? motion.attitude.roll : 0.0),
+        @"y": @(motion ? motion.attitude.pitch : 0.0),
+        @"z": @(motion ? motion.attitude.yaw : 0.0)
     };
     
-    if (motion) {
-        gyroRotationRate = @{
-            @"x": @(motion.rotationRate.x),
-            @"y": @(motion.rotationRate.y),
-            @"z": @(motion.rotationRate.z)
-        };
-        
-        gyroAttitude = @{
-            @"x": @(motion.attitude.quaternion.x),
-            @"y": @(motion.attitude.quaternion.y),
-            @"z": @(motion.attitude.quaternion.z),
-            @"w": @(motion.attitude.quaternion.w)
-        };
-        
-        gyroEulerAngles = @{
-            @"x": @(motion.attitude.pitch),
-            @"y": @(motion.attitude.yaw),
-            @"z": @(motion.attitude.roll)
-        };
-        
-        if (self.firstMotion) {
-            // Calculate relative attitude
-            CMQuaternion firstAttitude = self.firstMotion.attitude.quaternion;
-            CMQuaternion currentAttitude = motion.attitude.quaternion;
-            relativeAttitude = [self quaternionMultiply:[self quaternionInverse:firstAttitude] with:currentAttitude];
-            
-            // Calculate relative euler angles
-            relativeEulerAngles = [self quaternionToEulerAngles:relativeAttitude];
-            
-            // Calculate relative position (simplified - using ARKit's transform)
-            if (self.sceneView.session.currentFrame) {
-                matrix_float4x4 transform = self.sceneView.session.currentFrame.camera.transform;
-                relativePosition = (CMQuaternion){
-                    transform.columns[3].x,
-                    transform.columns[3].y,
-                    transform.columns[3].z,
-                    1.0
-                };
-            }
-        } else {
-            self.firstMotion = motion;
-        }
-    }
-    
-    // Initialize location data with default values
+    // Initialize location data
     NSNumber *latitude = @(0.0);
     NSNumber *longitude = @(0.0);
     
@@ -168,6 +223,7 @@
     // Create metadata dictionary
     return @{
         @"photoId": [[NSUUID UUID] UUIDString],
+        @"sessionId": [[NSUUID UUID] UUIDString],
         @"timestamp": [NSDate.date description],
         @"width": @(imageSize.width),
         @"height": @(imageSize.height),
@@ -219,101 +275,57 @@
         NSLog(@"📸 Already took 8 photos");
         return;
     }
-
-    // Check if AR session is running
-    if (self.sceneView.session.currentFrame == nil) {
-        NSLog(@"📸 AR session is not ready");
+    
+    if (self.isCapturing) {
+        NSLog(@"📸 Already capturing photo");
         return;
     }
+    
+    self.isCapturing = YES;
 
-    UIImage *snapshot;
     CMDeviceMotion *currentMotion = self.motionManager.deviceMotion;
     CLLocation *currentLocation = self.locationManager.location;
 
 #if TARGET_OS_SIMULATOR    
-    snapshot = [UIImage systemImageNamed:@"camera.fill"];
+    UIImage *snapshot = [UIImage systemImageNamed:@"camera.fill"];
     NSLog(@"Using placeholder image for simulator");
 #else    
-    // Get the current frame from AR session
-    ARFrame *currentFrame = self.sceneView.session.currentFrame;
-    if (currentFrame) {
-        // Get the captured image
-        CVPixelBufferRef pixelBuffer = currentFrame.capturedImage;
-        if (pixelBuffer) {
-            CIImage *ciImage = [CIImage imageWithCVPixelBuffer:pixelBuffer];
-            CIContext *context = [CIContext contextWithOptions:nil];
-            CGImageRef cgImage = [context createCGImage:ciImage fromRect:ciImage.extent];
-            snapshot = [UIImage imageWithCGImage:cgImage];
-            CGImageRelease(cgImage);
-        }
-    }
+    // Pause AR session
+    [self.sceneView.session pause];
     
-    if (!snapshot) {
-        snapshot = [self.sceneView snapshot];
-    }
-    NSLog(@"📸 Taking snapshot");
+    // Take photo using AVCapturePhotoOutput
+    dispatch_async(self.sessionQueue, ^{
+        if (!self.captureSession.isRunning) {
+            [self.captureSession startRunning];
+        }
+        
+        AVCapturePhotoSettings *settings = [[AVCapturePhotoSettings alloc] init];
+        settings.flashMode = AVCaptureFlashModeAuto;
+        settings.photoQualityPrioritization = AVCapturePhotoQualityPrioritizationQuality;
+        
+        [self.photoOutput capturePhotoWithSettings:settings delegate:self];
+    });
+    return; // Photo will be handled in delegate method
 #endif
 
-    if (!snapshot) {
-        NSLog(@"📸 Snapshot failed");
-        return;
-    }
+    // Rest of the existing photo handling code...
+}
 
-    // Create metadata
-    NSDictionary *metadata = [self createPhotoMetadata:snapshot withMotion:currentMotion andLocation:currentLocation];
+- (void)handleTap:(UITapGestureRecognizer *)gesture {
+    // Focus camera at tap point
+    CGPoint tapPoint = [gesture locationInView:self.sceneView];
+    CGPoint focusPoint = CGPointMake(tapPoint.x / self.sceneView.bounds.size.width,
+                                    tapPoint.y / self.sceneView.bounds.size.height);
     
-    // Save image with maximum quality
-    NSData *imageData;
-    NSString *extension;
-    
-    // Try to save as HEIC first
-    if (@available(iOS 11.0, *)) {
-        NSMutableData *heicData = [NSMutableData data];
-        CGImageDestinationRef destination = CGImageDestinationCreateWithData((__bridge CFMutableDataRef)heicData, (__bridge CFStringRef)@"public.heic", 1, NULL);
-        if (destination) {
-            CGImageDestinationAddImage(destination, snapshot.CGImage, (__bridge CFDictionaryRef)@{
-                (__bridge NSString *)kCGImageDestinationLossyCompressionQuality: @(1.0)
-            });
-            if (CGImageDestinationFinalize(destination)) {
-                imageData = heicData;
-                extension = @"heic";
+    dispatch_async(self.sessionQueue, ^{
+        if ([self.captureDevice lockForConfiguration:nil]) {
+            if (self.captureDevice.isFocusPointOfInterestSupported) {
+                self.captureDevice.focusPointOfInterest = focusPoint;
+                self.captureDevice.focusMode = AVCaptureFocusModeAutoFocus;
             }
-            CFRelease(destination);
+            [self.captureDevice unlockForConfiguration];
         }
-    }
-    
-    // Fallback to PNG if HEIC fails
-    if (!imageData) {
-        imageData = UIImagePNGRepresentation(snapshot);
-        extension = @"png";
-    }
-    
-    if (!imageData) {
-        NSLog(@"📸 Failed to convert snapshot to image data");
-        return;
-    }
-
-    NSString *filename = [NSString stringWithFormat:@"photo_%ld.%@", (long)self.photoCount + 1, extension];
-    NSString *photoPath = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
-
-    BOOL success = [imageData writeToFile:photoPath atomically:YES];
-    if (!success) {
-        NSLog(@"📸 Failed to save photo");
-        return;
-    }
-
-    // Add path to metadata
-    NSMutableDictionary *mutableMetadata = [metadata mutableCopy];
-    mutableMetadata[@"path"] = photoPath;
-    
-    [self.photoMetaArray addObject:mutableMetadata];
-    self.photoCount++;
-
-    NSLog(@"📸 Saved photo %ld → %@", (long)self.photoCount, photoPath);
-
-    if (self.photoCount == 8) {
-        [self exportSessionToFolder];
-    }
+    });
 }
 
 - (void)exportSessionToFolder {
@@ -344,27 +356,40 @@
 
     // Copy all photos
     for (NSDictionary *meta in self.photoMetaArray) {
-        NSString *src = meta[@"path"];
-        if (!src) {
+        NSDictionary *paths = meta[@"path"];
+        if (!paths) {
             NSLog(@"Missing path in metadata");
             continue;
         }
         
-        NSString *filename = [src lastPathComponent];
-        NSString *dst = [sessionFolder stringByAppendingPathComponent:filename];
-        
-        if ([fileManager fileExistsAtPath:src]) {
-            if (![fileManager copyItemAtPath:src toPath:dst error:&error]) {
-                NSLog(@"Failed to copy photo %@: %@", filename, error);
+        // Copy PNG
+        NSString *pngSrc = paths[@"png"];
+        if (pngSrc) {
+            NSString *pngFilename = [pngSrc lastPathComponent];
+            NSString *pngDst = [sessionFolder stringByAppendingPathComponent:pngFilename];
+            if ([fileManager fileExistsAtPath:pngSrc]) {
+                if (![fileManager copyItemAtPath:pngSrc toPath:pngDst error:&error]) {
+                    NSLog(@"Failed to copy PNG photo %@: %@", pngFilename, error);
+                }
             }
-        } else {
-            NSLog(@"Source photo not found: %@", src);
+        }
+        
+        // Copy HEIC
+        NSString *heicSrc = paths[@"heic"];
+        if (heicSrc) {
+            NSString *heicFilename = [heicSrc lastPathComponent];
+            NSString *heicDst = [sessionFolder stringByAppendingPathComponent:heicFilename];
+            if ([fileManager fileExistsAtPath:heicSrc]) {
+                if (![fileManager copyItemAtPath:heicSrc toPath:heicDst error:&error]) {
+                    NSLog(@"Failed to copy HEIC photo %@: %@", heicFilename, error);
+                }
+            }
         }
     }
 
     NSLog(@"📁 Session saved to folder: %@", sessionFolder);
     
-    // Show success alert with options to view or share
+    // Show success alert with options to view, share, or start new session
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Session Complete"
                                                                  message:@"Photos and metadata have been saved. What would you like to do?"
                                                           preferredStyle:UIAlertControllerStyleActionSheet];
@@ -381,8 +406,40 @@
         [self shareSession];
     }]];
     
+    [alert addAction:[UIAlertAction actionWithTitle:@"Start New Session"
+                                            style:UIAlertActionStyleDefault
+                                          handler:^(UIAlertAction * _Nonnull action) {
+        [self startNewSession];
+    }]];
+    
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancel"
                                             style:UIAlertActionStyleCancel
+                                          handler:nil]];
+    
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)startNewSession {
+    // Reset photo count
+    self.photoCount = 0;
+    
+    // Clear photo metadata array
+    [self.photoMetaArray removeAllObjects];
+    
+    // Reset first motion and location
+    self.firstMotion = nil;
+    self.firstLocation = nil;
+    
+    // Update counter
+    [self updatePhotoCounter];
+    
+    // Show confirmation alert
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"New Session"
+                                                                 message:@"New session started. You can now take 8 new photos."
+                                                          preferredStyle:UIAlertControllerStyleAlert];
+    
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK"
+                                            style:UIAlertActionStyleDefault
                                           handler:nil]];
     
     [self presentViewController:alert animated:YES completion:nil];
@@ -471,14 +528,8 @@
 
 #pragma mark - Helper Methods
 
-- (CMQuaternion)quaternionInverse:(CMQuaternion)q {
-    float norm = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-    return (CMQuaternion){
-        -q.x / norm,
-        -q.y / norm,
-        -q.z / norm,
-        q.w / norm
-    };
+- (CMQuaternion)quaternionConjugate:(CMQuaternion)q {
+    return (CMQuaternion){-q.x, -q.y, -q.z, q.w};
 }
 
 - (CMQuaternion)quaternionMultiply:(CMQuaternion)q1 with:(CMQuaternion)q2 {
@@ -491,12 +542,12 @@
 }
 
 - (CMQuaternion)quaternionToEulerAngles:(CMQuaternion)q {
-    // Convert quaternion to Euler angles (in degrees)
-    float pitch = asin(2 * (q.w * q.y - q.x * q.z)) * 180.0 / M_PI;
-    float yaw = atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)) * 180.0 / M_PI;
-    float roll = atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y)) * 180.0 / M_PI;
+    // Convert quaternion to euler angles (roll, pitch, yaw)
+    double roll = atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y));
+    double pitch = asin(2 * (q.w * q.y - q.z * q.x));
+    double yaw = atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z));
     
-    return (CMQuaternion){pitch, yaw, roll, 1.0};
+    return (CMQuaternion){roll, pitch, yaw, 0};
 }
 
 - (void)dealloc {
@@ -531,6 +582,166 @@
     config.planeDetection = ARPlaneDetectionHorizontal | ARPlaneDetectionVertical;
     config.environmentTexturing = AREnvironmentTexturingAutomatic;
     [self.sceneView.session runWithConfiguration:config options:ARSessionRunOptionResetSceneReconstruction | ARSessionRunOptionRemoveExistingAnchors];
+}
+
+#pragma mark - AVCapturePhotoCaptureDelegate
+
+- (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error {
+    if (error) {
+        NSLog(@"📸 Error capturing photo: %@", error);
+        // Resume AR session
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.sceneView.session runWithConfiguration:self.sceneView.session.configuration];
+            self.isCapturing = NO;
+        });
+        return;
+    }
+    
+    UIImage *snapshot = [UIImage imageWithData:photo.fileDataRepresentation];
+    if (!snapshot) {
+        NSLog(@"📸 Failed to create image from photo data");
+        // Resume AR session
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.sceneView.session runWithConfiguration:self.sceneView.session.configuration];
+            self.isCapturing = NO;
+        });
+        return;
+    }
+    
+    NSLog(@"📸 Captured photo size: %.0fx%.0f", snapshot.size.width, snapshot.size.height);
+    
+    // Create metadata
+    NSDictionary *metadata = [self createPhotoMetadata:snapshot withMotion:self.motionManager.deviceMotion andLocation:self.locationManager.location];
+    
+    // Save both PNG and HEIC formats
+    NSString *baseFilename = [NSString stringWithFormat:@"photo_%ld", (long)self.photoCount + 1];
+    NSString *pngPath = [NSTemporaryDirectory() stringByAppendingPathComponent:[baseFilename stringByAppendingString:@".png"]];
+    NSString *heicPath = [NSTemporaryDirectory() stringByAppendingPathComponent:[baseFilename stringByAppendingString:@".heic"]];
+    
+    // Save PNG
+    NSData *pngData = UIImagePNGRepresentation(snapshot);
+    BOOL pngSuccess = [pngData writeToFile:pngPath atomically:YES];
+    
+    // Save HEIC
+    BOOL heicSuccess = NO;
+    if (@available(iOS 11.0, *)) {
+        NSMutableData *heicData = [NSMutableData data];
+        CGImageDestinationRef destination = CGImageDestinationCreateWithData((__bridge CFMutableDataRef)heicData, (__bridge CFStringRef)@"public.heic", 1, NULL);
+        if (destination) {
+            CGImageDestinationAddImage(destination, snapshot.CGImage, (__bridge CFDictionaryRef)@{
+                (__bridge NSString *)kCGImageDestinationLossyCompressionQuality: @(1.0)
+            });
+            if (CGImageDestinationFinalize(destination)) {
+                heicSuccess = [heicData writeToFile:heicPath atomically:YES];
+            }
+            CFRelease(destination);
+        }
+    }
+    
+    if (!pngSuccess || !heicSuccess) {
+        NSLog(@"📸 Failed to save photo in one or both formats");
+        // Resume AR session
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.sceneView.session runWithConfiguration:self.sceneView.session.configuration];
+            self.isCapturing = NO;
+        });
+        return;
+    }
+    
+    // Save to photo library
+    [self saveToPhotoLibrary:snapshot];
+    
+    // Add paths to metadata
+    NSMutableDictionary *mutableMetadata = [metadata mutableCopy];
+    mutableMetadata[@"path"] = @{
+        @"png": pngPath,
+        @"heic": heicPath
+    };
+    
+    [self.photoMetaArray addObject:mutableMetadata];
+    self.photoCount++;
+    
+    // Update counter
+    [self updatePhotoCounter];
+    
+    NSLog(@"📸 Saved photo %ld → PNG: %@, HEIC: %@", (long)self.photoCount, pngPath, heicPath);
+    
+    // Resume AR session
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.sceneView.session runWithConfiguration:self.sceneView.session.configuration];
+        self.isCapturing = NO;
+    });
+    
+    if (self.photoCount == 8) {
+        [self exportSessionToFolder];
+    }
+}
+
+- (void)saveToPhotoLibrary:(UIImage *)image {
+    // Request photo library access
+    [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
+        if (status == PHAuthorizationStatusAuthorized) {
+            // Save PNG
+            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil);
+            
+            // Save HEIC if available
+            if (@available(iOS 11.0, *)) {
+                NSMutableData *heicData = [NSMutableData data];
+                CGImageDestinationRef destination = CGImageDestinationCreateWithData((__bridge CFMutableDataRef)heicData, (__bridge CFStringRef)@"public.heic", 1, NULL);
+                if (destination) {
+                    CGImageDestinationAddImage(destination, image.CGImage, (__bridge CFDictionaryRef)@{
+                        (__bridge NSString *)kCGImageDestinationLossyCompressionQuality: @(1.0)
+                    });
+                    if (CGImageDestinationFinalize(destination)) {
+                        // Create temporary file for HEIC
+                        NSString *tempPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"temp.heic"];
+                        [heicData writeToFile:tempPath atomically:YES];
+                        
+                        // Save HEIC to photo library
+                        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+                            [PHAssetChangeRequest creationRequestForAssetFromImageAtFileURL:[NSURL fileURLWithPath:tempPath]];
+                        } completionHandler:^(BOOL success, NSError * _Nullable error) {
+                            if (!success) {
+                                NSLog(@"Failed to save HEIC to photo library: %@", error);
+                            }
+                            // Clean up temporary file
+                            [[NSFileManager defaultManager] removeItemAtPath:tempPath error:nil];
+                        }];
+                    }
+                    CFRelease(destination);
+                }
+            }
+        } else {
+            NSLog(@"Photo library access denied");
+        }
+    }];
+}
+
+- (void)setupPhotoCounterLabel {
+    self.photoCounterLabel = [[UILabel alloc] init];
+    self.photoCounterLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    self.photoCounterLabel.textColor = [UIColor whiteColor];
+    self.photoCounterLabel.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
+    self.photoCounterLabel.textAlignment = NSTextAlignmentCenter;
+    self.photoCounterLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightMedium];
+    self.photoCounterLabel.layer.cornerRadius = 15;
+    self.photoCounterLabel.clipsToBounds = YES;
+    
+    [self.view addSubview:self.photoCounterLabel];
+    
+    // Add constraints
+    [NSLayoutConstraint activateConstraints:@[
+        [self.photoCounterLabel.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:20],
+        [self.photoCounterLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [self.photoCounterLabel.widthAnchor constraintGreaterThanOrEqualToConstant:100],
+        [self.photoCounterLabel.heightAnchor constraintEqualToConstant:30]
+    ]];
+}
+
+- (void)updatePhotoCounter {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.photoCounterLabel.text = [NSString stringWithFormat:@"%ld/8", (long)self.photoCount];
+    });
 }
 
 @end

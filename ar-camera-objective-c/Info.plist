@@ -6,6 +6,8 @@
 	<string>Camera access is required for AR photo capture</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Motion data is required for photo metadata</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is required to save captured photos</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
