@@ -6,12 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		8EB643282758922C3E50BF5A /* Pods_ar_camera_objective_c_ar_camera_objective_cUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3DEFA80D1CCC7C18B8CCFFB1 /* Pods_ar_camera_objective_c_ar_camera_objective_cUITests.framework */; };
-		BE4C9046EDEA22A4086A928F /* Pods_ar_camera_objective_c.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E9882608ED7ACFC3292737F /* Pods_ar_camera_objective_c.framework */; };
-		DC8090B6FB563BAE37440D7E /* Pods_ar_camera_objective_cTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9DAB8A1521D86037680B95C7 /* Pods_ar_camera_objective_cTests.framework */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		044ED7962DFDABC3004ED3FE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -33,15 +27,6 @@
 		044ED77A2DFDABC2004ED3FE /* ar-camera-objective-c.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ar-camera-objective-c.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		044ED7952DFDABC3004ED3FE /* ar-camera-objective-cTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ar-camera-objective-cTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		044ED79F2DFDABC3004ED3FE /* ar-camera-objective-cUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ar-camera-objective-cUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		04D30AD007D28C768FB1474D /* Pods-ar-camera-objective-c.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ar-camera-objective-c.release.xcconfig"; path = "Target Support Files/Pods-ar-camera-objective-c/Pods-ar-camera-objective-c.release.xcconfig"; sourceTree = "<group>"; };
-		06EE58934865510425E7283B /* Pods-ar-camera-objective-cTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ar-camera-objective-cTests.release.xcconfig"; path = "Target Support Files/Pods-ar-camera-objective-cTests/Pods-ar-camera-objective-cTests.release.xcconfig"; sourceTree = "<group>"; };
-		1EFAB9F5D31D03BDE3AF2FD5 /* Pods-ar-camera-objective-c.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ar-camera-objective-c.debug.xcconfig"; path = "Target Support Files/Pods-ar-camera-objective-c/Pods-ar-camera-objective-c.debug.xcconfig"; sourceTree = "<group>"; };
-		259E64EC9D7D18AF9E6B643E /* Pods-ar-camera-objective-cTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ar-camera-objective-cTests.debug.xcconfig"; path = "Target Support Files/Pods-ar-camera-objective-cTests/Pods-ar-camera-objective-cTests.debug.xcconfig"; sourceTree = "<group>"; };
-		3DEFA80D1CCC7C18B8CCFFB1 /* Pods_ar_camera_objective_c_ar_camera_objective_cUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ar_camera_objective_c_ar_camera_objective_cUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		4E9882608ED7ACFC3292737F /* Pods_ar_camera_objective_c.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ar_camera_objective_c.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		75D9B830B0C1EEEA02C5CF92 /* Pods-ar-camera-objective-c-ar-camera-objective-cUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ar-camera-objective-c-ar-camera-objective-cUITests.debug.xcconfig"; path = "Target Support Files/Pods-ar-camera-objective-c-ar-camera-objective-cUITests/Pods-ar-camera-objective-c-ar-camera-objective-cUITests.debug.xcconfig"; sourceTree = "<group>"; };
-		9C0291F1BF7151CF1F9B0EF2 /* Pods-ar-camera-objective-c-ar-camera-objective-cUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ar-camera-objective-c-ar-camera-objective-cUITests.release.xcconfig"; path = "Target Support Files/Pods-ar-camera-objective-c-ar-camera-objective-cUITests/Pods-ar-camera-objective-c-ar-camera-objective-cUITests.release.xcconfig"; sourceTree = "<group>"; };
-		9DAB8A1521D86037680B95C7 /* Pods_ar_camera_objective_cTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_ar_camera_objective_cTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -52,6 +37,13 @@
 			);
 			target = 044ED7792DFDABC2004ED3FE /* ar-camera-objective-c */;
 		};
+		049FE1B12E007EF900827F03 /* Exceptions for "ar-camera-objective-c" folder in "ar-camera-objective-cTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 044ED7942DFDABC3004ED3FE /* ar-camera-objective-cTests */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -59,6 +51,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				044ED7A72DFDABC3004ED3FE /* Exceptions for "ar-camera-objective-c" folder in "ar-camera-objective-c" target */,
+				049FE1B12E007EF900827F03 /* Exceptions for "ar-camera-objective-c" folder in "ar-camera-objective-cTests" target */,
 			);
 			path = "ar-camera-objective-c";
 			sourceTree = "<group>";
@@ -80,7 +73,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BE4C9046EDEA22A4086A928F /* Pods_ar_camera_objective_c.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -88,7 +80,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DC8090B6FB563BAE37440D7E /* Pods_ar_camera_objective_cTests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,7 +87,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8EB643282758922C3E50BF5A /* Pods_ar_camera_objective_c_ar_camera_objective_cUITests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -110,8 +100,6 @@
 				044ED7982DFDABC3004ED3FE /* ar-camera-objective-cTests */,
 				044ED7A22DFDABC3004ED3FE /* ar-camera-objective-cUITests */,
 				044ED77B2DFDABC2004ED3FE /* Products */,
-				15D8B80061149E23315FB0CF /* Pods */,
-				8BBB8C61C7F3755FF2CAC143 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -125,29 +113,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		15D8B80061149E23315FB0CF /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				1EFAB9F5D31D03BDE3AF2FD5 /* Pods-ar-camera-objective-c.debug.xcconfig */,
-				04D30AD007D28C768FB1474D /* Pods-ar-camera-objective-c.release.xcconfig */,
-				75D9B830B0C1EEEA02C5CF92 /* Pods-ar-camera-objective-c-ar-camera-objective-cUITests.debug.xcconfig */,
-				9C0291F1BF7151CF1F9B0EF2 /* Pods-ar-camera-objective-c-ar-camera-objective-cUITests.release.xcconfig */,
-				259E64EC9D7D18AF9E6B643E /* Pods-ar-camera-objective-cTests.debug.xcconfig */,
-				06EE58934865510425E7283B /* Pods-ar-camera-objective-cTests.release.xcconfig */,
-			);
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		8BBB8C61C7F3755FF2CAC143 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				4E9882608ED7ACFC3292737F /* Pods_ar_camera_objective_c.framework */,
-				3DEFA80D1CCC7C18B8CCFFB1 /* Pods_ar_camera_objective_c_ar_camera_objective_cUITests.framework */,
-				9DAB8A1521D86037680B95C7 /* Pods_ar_camera_objective_cTests.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -155,7 +120,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 044ED7A82DFDABC3004ED3FE /* Build configuration list for PBXNativeTarget "ar-camera-objective-c" */;
 			buildPhases = (
-				A9FECF5B572C28841E9AAA3A /* [CP] Check Pods Manifest.lock */,
 				044ED7762DFDABC2004ED3FE /* Sources */,
 				044ED7772DFDABC2004ED3FE /* Frameworks */,
 				044ED7782DFDABC2004ED3FE /* Resources */,
@@ -176,7 +140,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 044ED7AD2DFDABC3004ED3FE /* Build configuration list for PBXNativeTarget "ar-camera-objective-cTests" */;
 			buildPhases = (
-				30B83D284B1F35F6888E603D /* [CP] Check Pods Manifest.lock */,
 				044ED7912DFDABC3004ED3FE /* Sources */,
 				044ED7922DFDABC3004ED3FE /* Frameworks */,
 				044ED7932DFDABC3004ED3FE /* Resources */,
@@ -198,7 +161,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 044ED7B02DFDABC3004ED3FE /* Build configuration list for PBXNativeTarget "ar-camera-objective-cUITests" */;
 			buildPhases = (
-				3B77ED30EBA82850E1C54797 /* [CP] Check Pods Manifest.lock */,
 				044ED79B2DFDABC3004ED3FE /* Sources */,
 				044ED79C2DFDABC3004ED3FE /* Frameworks */,
 				044ED79D2DFDABC3004ED3FE /* Resources */,
@@ -283,75 +245,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		30B83D284B1F35F6888E603D /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-ar-camera-objective-cTests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		3B77ED30EBA82850E1C54797 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-ar-camera-objective-c-ar-camera-objective-cUITests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		A9FECF5B572C28841E9AAA3A /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-ar-camera-objective-c-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		044ED7762DFDABC2004ED3FE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -390,95 +283,10 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		044ED7A92DFDABC3004ED3FE /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1EFAB9F5D31D03BDE3AF2FD5 /* Pods-ar-camera-objective-c.debug.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 938B3GYBF5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "ar-camera-objective-c/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "AR camera";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required for AR photo capture";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access is required for photo metadata";
-				INFOPLIST_KEY_NSMotionUsageDescription = "Motion data is required for photo metadata";
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sergoutback.ar-camera-objective-c";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = ARCameraDevProfile;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Debug;
-		};
-		044ED7AA2DFDABC3004ED3FE /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 04D30AD007D28C768FB1474D /* Pods-ar-camera-objective-c.release.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 938B3GYBF5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "ar-camera-objective-c/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "AR camera";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required for AR photo capture";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access is required for photo metadata";
-				INFOPLIST_KEY_NSMotionUsageDescription = "Motion data is required for photo metadata";
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sergoutback.ar-camera-objective-c";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = ARCameraDevProfile;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
-		044ED7AB2DFDABC3004ED3FE /* Debug */ = {
+		044ED7A62DFDABC3004ED3FE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -509,11 +317,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 938B3GYBF5;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -527,8 +333,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -536,11 +341,10 @@
 			};
 			name = Debug;
 		};
-		044ED7AC2DFDABC3004ED3FE /* Release */ = {
+		044ED7A92DFDABC3004ED3FE /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -571,11 +375,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 938B3GYBF5;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -583,8 +385,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
@@ -592,73 +393,141 @@
 			};
 			name = Release;
 		};
-		044ED7AE2DFDABC3004ED3FE /* Debug */ = {
+		044ED7AA2DFDABC3004ED3FE /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 259E64EC9D7D18AF9E6B643E /* Pods-ar-camera-objective-cTests.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 938B3GYBF5;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "ar-camera-objective-c/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.ar-camera-objective-c";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		044ED7AB2DFDABC3004ED3FE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 938B3GYBF5;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "ar-camera-objective-c/Info.plist";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.ar-camera-objective-c";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		044ED7AC2DFDABC3004ED3FE /* Debug */ = {
+			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 938B3GYBF5;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sergoutback.ar-camera-objective-cTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.ar-camera-objective-cTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ar-camera-objective-c.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ar-camera-objective-c";
 			};
 			name = Debug;
 		};
-		044ED7AF2DFDABC3004ED3FE /* Release */ = {
+		044ED7AE2DFDABC3004ED3FE /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 06EE58934865510425E7283B /* Pods-ar-camera-objective-cTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 938B3GYBF5;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sergoutback.ar-camera-objective-cTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.ar-camera-objective-cTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ar-camera-objective-c.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ar-camera-objective-c";
 			};
 			name = Release;
 		};
-		044ED7B12DFDABC3004ED3FE /* Debug */ = {
+		044ED7AF2DFDABC3004ED3FE /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 75D9B830B0C1EEEA02C5CF92 /* Pods-ar-camera-objective-c-ar-camera-objective-cUITests.debug.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 938B3GYBF5;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sergoutback.ar-camera-objective-cUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.ar-camera-objective-cUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = "ar-camera-objective-c";
 			};
 			name = Debug;
 		};
-		044ED7B22DFDABC3004ED3FE /* Release */ = {
+		044ED7B12DFDABC3004ED3FE /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9C0291F1BF7151CF1F9B0EF2 /* Pods-ar-camera-objective-c-ar-camera-objective-cUITests.release.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 938B3GYBF5;
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.sergoutback.ar-camera-objective-cUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.ar-camera-objective-cUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = "ar-camera-objective-c";
 			};
@@ -670,8 +539,8 @@
 		044ED7752DFDABC2004ED3FE /* Build configuration list for PBXProject "ar-camera-objective-c" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				044ED7AB2DFDABC3004ED3FE /* Debug */,
-				044ED7AC2DFDABC3004ED3FE /* Release */,
+				044ED7A62DFDABC3004ED3FE /* Debug */,
+				044ED7A92DFDABC3004ED3FE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -679,8 +548,8 @@
 		044ED7A82DFDABC3004ED3FE /* Build configuration list for PBXNativeTarget "ar-camera-objective-c" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				044ED7A92DFDABC3004ED3FE /* Debug */,
-				044ED7AA2DFDABC3004ED3FE /* Release */,
+				044ED7AA2DFDABC3004ED3FE /* Debug */,
+				044ED7AB2DFDABC3004ED3FE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -688,8 +557,8 @@
 		044ED7AD2DFDABC3004ED3FE /* Build configuration list for PBXNativeTarget "ar-camera-objective-cTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				044ED7AE2DFDABC3004ED3FE /* Debug */,
-				044ED7AF2DFDABC3004ED3FE /* Release */,
+				044ED7AC2DFDABC3004ED3FE /* Debug */,
+				044ED7AE2DFDABC3004ED3FE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -697,8 +566,8 @@
 		044ED7B02DFDABC3004ED3FE /* Build configuration list for PBXNativeTarget "ar-camera-objective-cUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				044ED7B12DFDABC3004ED3FE /* Debug */,
-				044ED7B22DFDABC3004ED3FE /* Release */,
+				044ED7AF2DFDABC3004ED3FE /* Debug */,
+				044ED7B12DFDABC3004ED3FE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
