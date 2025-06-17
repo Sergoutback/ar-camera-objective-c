@@ -7,6 +7,7 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol ARServiceDelegate <NSObject>
 - (void)didUpdateCameraPosition:(SCNVector3)position eulerAngles:(SCNVector3)eulerAngles;
 - (void)didUpdateSpaceScanningStatus:(BOOL)isScanned;
+- (void)didUpdateARStatusMessage:(NSString *)message;
 @end
 
 @interface ARService : NSObject <ARServiceProtocol, ARSCNViewDelegate, ARSessionDelegate>

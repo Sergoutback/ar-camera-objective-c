@@ -10,11 +10,14 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) SCNVector3 relativeEulerAngles;
 @property (nonatomic, strong) UIImage *thumbnail;
 @property (nonatomic, strong) NSDate *timestamp;
+@property (nonatomic, strong) NSString *imagePath;
 
 - (instancetype)initWithPhotoId:(NSString *)photoId
                 relativePosition:(SCNVector3)position
               relativeEulerAngles:(SCNVector3)eulerAngles
                       thumbnail:(UIImage *)thumbnail;
+
+- (NSDictionary *)toDictionary;
 
 @end
 

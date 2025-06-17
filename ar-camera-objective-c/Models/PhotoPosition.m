@@ -17,4 +17,22 @@
     return self;
 }
 
+- (NSDictionary *)toDictionary {
+    return @{
+        @"photoId": self.photoId ?: @"",
+        @"imagePath": self.imagePath ?: @"",
+        @"relativePosition": @{
+            @"x": @(self.relativePosition.x),
+            @"y": @(self.relativePosition.y),
+            @"z": @(self.relativePosition.z)
+        },
+        @"relativeEulerAngles": @{
+            @"x": @(self.relativeEulerAngles.x),
+            @"y": @(self.relativeEulerAngles.y),
+            @"z": @(self.relativeEulerAngles.z)
+        },
+        @"timestamp": self.timestamp ? @([self.timestamp timeIntervalSince1970]) : @(0)
+    };
+}
+
 @end 

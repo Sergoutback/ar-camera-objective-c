@@ -13,8 +13,6 @@
 @property (nonatomic, strong) NSMutableDictionary<NSUUID *, SCNNode *> *planeNodes;
 @property (nonatomic, strong) id<MTLDevice> metalDevice;
 @property (nonatomic, strong) id<MTLCommandQueue> commandQueue;
-@property (nonatomic, strong) UILabel *debugLabel;
-@property (nonatomic, strong) UILabel *scanProgressLabel;
 
 @end
 
@@ -65,46 +63,9 @@
             }
         }
         
-        [self setupDebugLabel];
         [self setupAR];
     }
     return self;
-}
-
-- (void)setupDebugLabel {
-    self.debugLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 40, 350, 80)];
-    self.debugLabel.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.7];
-    self.debugLabel.textColor = [UIColor whiteColor];
-    self.debugLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightBold];
-    self.debugLabel.numberOfLines = 0;
-    self.debugLabel.textAlignment = NSTextAlignmentLeft;
-    self.debugLabel.layer.cornerRadius = 8;
-    self.debugLabel.layer.masksToBounds = YES;
-    self.debugLabel.hidden = YES;
-    [self.sceneView addSubview:self.debugLabel];
-    // Индикатор прогресса сканирования
-    self.scanProgressLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, 130, 350, 40)];
-    self.scanProgressLabel.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
-    self.scanProgressLabel.textColor = [UIColor whiteColor];
-    self.scanProgressLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightMedium];
-    self.scanProgressLabel.textAlignment = NSTextAlignmentLeft;
-    self.scanProgressLabel.layer.cornerRadius = 8;
-    self.scanProgressLabel.layer.masksToBounds = YES;
-    self.scanProgressLabel.hidden = NO;
-    [self.sceneView addSubview:self.scanProgressLabel];
-}
-
-- (void)showDebugMessage:(NSString *)message {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        self.debugLabel.text = message;
-        self.debugLabel.hidden = NO;
-        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(hideDebugLabel) object:nil];
-        [self performSelector:@selector(hideDebugLabel) withObject:nil afterDelay:4.0];
-    });
-}
-
-- (void)hideDebugLabel {
-    self.debugLabel.hidden = YES;
 }
 
 - (void)setupAR {
@@ -122,10 +83,11 @@
     @try {
         [self.sceneView.session runWithConfiguration:configuration];
         self.isSessionRunning = YES;
-        [self showDebugMessage:@"ARSession started successfully."];
+        if ([self.delegate respondsToSelector:@selector(didUpdateARStatusMessage:)]) {
+            [self.delegate didUpdateARStatusMessage:@"ARSession started successfully."];
+        }
     } @catch (NSException *exception) {
         NSLog(@"AR Session setup failed: %@", exception);
-        [self showDebugMessage:[NSString stringWithFormat:@"AR Session setup failed: %@", exception.reason]];
         [self.sceneView.session runWithConfiguration:configuration options:ARSessionRunOptionResetTracking];
     }
 }
@@ -414,7 +376,10 @@
         
         // Check if we have enough planes detected
         [self checkSpaceScanningStatus];
-        [self showDebugMessage:[NSString stringWithFormat:@"Plane detected: %@", planeAnchor.alignment == ARPlaneAnchorAlignmentHorizontal ? @"Horizontal" : @"Vertical"]];
+        if ([self.delegate respondsToSelector:@selector(didUpdateARStatusMessage:)]) {
+            NSString *msg = [NSString stringWithFormat:@"Plane detected: %@", planeAnchor.alignment == ARPlaneAnchorAlignmentHorizontal ? @"Horizontal" : @"Vertical"];
+            [self.delegate didUpdateARStatusMessage:msg];
+        }
     }
 }
 
@@ -449,7 +414,6 @@
 }
 
 - (void)checkSpaceScanningStatus {
-    // Check if we have both horizontal and vertical planes
     BOOL hasHorizontalPlane = NO;
     BOOL hasVerticalPlane = NO;
     int horizontalCount = 0;
@@ -463,20 +427,9 @@
             verticalCount++;
         }
     }
-    // Update scanning status
     BOOL wasScanned = self.isSpaceScanned;
     self.isSpaceScanned = hasHorizontalPlane && hasVerticalPlane;
-    // Updating the progress indicator
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (self.isSpaceScanned) {
-            self.scanProgressLabel.text = [NSString stringWithFormat:@"Ready! Horizontal: %d, vertical: %d", horizontalCount, verticalCount];
-            self.scanProgressLabel.backgroundColor = [[UIColor greenColor] colorWithAlphaComponent:0.5];
-        } else {
-            self.scanProgressLabel.text = [NSString stringWithFormat:@"Found - horizontal: %d, vertical: %d. Need at least one of each!", horizontalCount, verticalCount];
-            self.scanProgressLabel.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
-        }
-    });
-    // Notify delegate if status changed
+    // Only update the scan status via the delegate
     if (wasScanned != self.isSpaceScanned && [self.delegate respondsToSelector:@selector(didUpdateSpaceScanningStatus:)]) {
         [self.delegate didUpdateSpaceScanningStatus:self.isSpaceScanned];
     }
@@ -505,7 +458,9 @@
 - (void)session:(ARSession *)session didFailWithError:(NSError *)error {
     self.isSessionRunning = NO;
     NSLog(@"AR Session failed: %@", error);
-    [self showDebugMessage:[NSString stringWithFormat:@"AR Session failed: %@", error.localizedDescription]];
+    if ([self.delegate respondsToSelector:@selector(didUpdateARStatusMessage:)]) {
+        [self.delegate didUpdateARStatusMessage:[NSString stringWithFormat:@"AR Session failed: %@", error.localizedDescription]];
+    }
 }
 
 - (void)sessionWasInterrupted:(ARSession *)session {

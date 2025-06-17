@@ -30,6 +30,7 @@
 @property (nonatomic, strong) UILabel *photoCounterLabel;
 @property (nonatomic, strong) UIView *scanningStatusView;
 @property (nonatomic, strong) UILabel *scanningStatusLabel;
+@property (nonatomic, strong) UIStackView *notificationStackView;
 
 @end
 
@@ -145,6 +146,23 @@
     self.scanningStatusLabel.numberOfLines = 0;
     [self.scanningStatusView addSubview:self.scanningStatusLabel];
     
+    // Auto Layout notificationStackView (добавляем первым)
+    self.notificationStackView = [[UIStackView alloc] init];
+    self.notificationStackView.axis = UILayoutConstraintAxisVertical;
+    self.notificationStackView.spacing = 8;
+    self.notificationStackView.alignment = UIStackViewAlignmentFill;
+    self.notificationStackView.distribution = UIStackViewDistributionEqualSpacing;
+    self.notificationStackView.userInteractionEnabled = NO;
+    self.notificationStackView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.notificationStackView.backgroundColor = [[UIColor redColor] colorWithAlphaComponent:0.08]; // для отладки
+    [self.view insertSubview:self.notificationStackView atIndex:0];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.notificationStackView.topAnchor constraintEqualToAnchor:self.scanningStatusView.bottomAnchor constant:10],
+        [self.notificationStackView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:10],
+        [self.notificationStackView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-10],
+        [self.notificationStackView.bottomAnchor constraintLessThanOrEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-10]
+    ]];
+    
     // Layout
     self.captureButton.translatesAutoresizingMaskIntoConstraints = NO;
     self.resetButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -170,10 +188,10 @@
         [self.exportButton.widthAnchor constraintEqualToConstant:80],
         [self.exportButton.heightAnchor constraintEqualToConstant:80],
         
-        // Photo Counter Label
-        [self.photoCounterLabel.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:20],
-        [self.photoCounterLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
-        [self.photoCounterLabel.widthAnchor constraintEqualToConstant:80],
+        // Photo Counter Label (above capture button)
+        [self.photoCounterLabel.centerXAnchor constraintEqualToAnchor:self.captureButton.centerXAnchor],
+        [self.photoCounterLabel.bottomAnchor constraintEqualToAnchor:self.captureButton.topAnchor constant:-10],
+        [self.photoCounterLabel.widthAnchor constraintEqualToConstant:90],
         [self.photoCounterLabel.heightAnchor constraintEqualToConstant:30],
         
         [self.scanningStatusView.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
@@ -207,21 +225,7 @@
 #pragma mark - Actions
 
 - (void)captureButtonTapped {
-    // Визуальный лог на экран
-    UILabel *logLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, self.view.bounds.size.height-150, self.view.bounds.size.width-20, 40)];
-    logLabel.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.7];
-    logLabel.textColor = [UIColor whiteColor];
-    logLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightBold];
-    logLabel.textAlignment = NSTextAlignmentCenter;
-    logLabel.text = @"Capture button tapped!";
-    logLabel.layer.cornerRadius = 8;
-    logLabel.layer.masksToBounds = YES;
-    [self.view addSubview:logLabel];
-    [UIView animateWithDuration:0.5 delay:1.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
-        logLabel.alpha = 0;
-    } completion:^(BOOL finished) {
-        [logLabel removeFromSuperview];
-    }];
+    [self showNotification:@"Capture button tapped!"];
     
     if (!self.canvasView.isInitialized) {
         // Create initial anchor at current camera position
@@ -262,9 +266,56 @@
 }
 
 - (void)exportButtonTapped {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Export"
-                                                                   message:@"Export is not implemented yet."
-                                                            preferredStyle:UIAlertControllerStyleAlert];
+    // 1. Create a temporary folder
+    NSString *tempDir = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSError *error = nil;
+    [fileManager createDirectoryAtPath:tempDir withIntermediateDirectories:YES attributes:nil error:&error];
+    if (error) {
+        [self showAlertWithTitle:@"Export error" message:error.localizedDescription];
+        return;
+    }
+    // 2. Copy PNG files
+    NSMutableArray *activityItems = [NSMutableArray array];
+    NSMutableArray *photoDicts = [NSMutableArray array];
+    for (PhotoPosition *photo in self.photoMetaArray) {
+        if (photo.imagePath) {
+            NSString *fileName = [photo.imagePath lastPathComponent];
+            NSString *destPath = [tempDir stringByAppendingPathComponent:fileName];
+            [fileManager copyItemAtPath:photo.imagePath toPath:destPath error:nil];
+            [activityItems addObject:[NSURL fileURLWithPath:destPath]];
+        }
+        // Collecting metadata for JSON
+        [photoDicts addObject:[photo toDictionary]];
+    }
+    // 3. Generate JSON file
+    NSDateFormatter *df = [[NSDateFormatter alloc] init];
+    df.dateFormat = @"yyyyMMdd_HHmmss";
+    NSString *dateStr = [df stringFromDate:[NSDate date]];
+    NSString *jsonName = [NSString stringWithFormat:@"Session_%@.json", dateStr];
+    NSString *jsonPath = [tempDir stringByAppendingPathComponent:jsonName];
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:photoDicts options:NSJSONWritingPrettyPrinted error:&error];
+    if (jsonData) {
+        [jsonData writeToFile:jsonPath atomically:YES];
+        [activityItems addObject:[NSURL fileURLWithPath:jsonPath]];
+    }
+    // 4. Call the sharing menu
+    UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:nil];
+    __weak typeof(self) weakSelf = self;
+    activityVC.completionWithItemsHandler = ^(UIActivityType __nullable activityType, BOOL completed, NSArray * __nullable returnedItems, NSError * __nullable activityError) {
+        
+        [fileManager removeItemAtPath:tempDir error:nil];
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf resetButtonTapped];
+        });
+    };
+    [self presentViewController:activityVC animated:YES completion:nil];
+}
+
+- (void)showAlertWithTitle:(NSString *)title message:(NSString *)message {
+    if (self.presentedViewController) return;
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
 }
@@ -309,66 +360,41 @@
     });
 }
 
+- (void)didUpdateARStatusMessage:(NSString *)message {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self showNotification:message];
+    });
+}
+
 #pragma mark - Private Methods
 
-- (void)showSharingDialog {
-    // Get the metadata directory path
-    NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *metadataPath = [documentsPath stringByAppendingPathComponent:@"PhotoMetadata"];
+- (void)showNotification:(NSString *)text {
+    UILabel *label = [[UILabel alloc] init];
+    label.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.7];
+    label.textColor = [UIColor whiteColor];
+    label.font = [UIFont systemFontOfSize:16 weight:UIFontWeightBold];
+    label.textAlignment = NSTextAlignmentCenter;
+    label.text = text;
+    label.layer.cornerRadius = 8;
+    label.layer.masksToBounds = YES;
+    label.numberOfLines = 0;
     
-    // Create a temporary directory for sharing
-    NSString *tempDir = [NSTemporaryDirectory() stringByAppendingPathComponent:@"ARPhotos"];
-    NSFileManager *fileManager = [NSFileManager defaultManager];
+    [label.heightAnchor constraintGreaterThanOrEqualToConstant:32].active = YES;
     
-    // Remove existing temp directory if it exists
-    if ([fileManager fileExistsAtPath:tempDir]) {
-        [fileManager removeItemAtPath:tempDir error:nil];
+    if (self.notificationStackView.arrangedSubviews.count >= 4) {
+        UIView *first = self.notificationStackView.arrangedSubviews.firstObject;
+        [self.notificationStackView removeArrangedSubview:first];
+        [first removeFromSuperview];
     }
-    
-    // Create new temp directory
-    NSError *error;
-    [fileManager createDirectoryAtPath:tempDir withIntermediateDirectories:YES attributes:nil error:&error];
-    
-    if (error) {
-        NSLog(@"Error creating temp directory: %@", error);
-        return;
-    }
-    
-    // Copy all JSON files to temp directory
-    NSArray *jsonFiles = [fileManager contentsOfDirectoryAtPath:metadataPath error:&error];
-    if (error) {
-        NSLog(@"Error reading metadata directory: %@", error);
-        return;
-    }
-    
-    for (NSString *jsonFile in jsonFiles) {
-        if ([jsonFile.pathExtension isEqualToString:@"json"]) {
-            NSString *sourcePath = [metadataPath stringByAppendingPathComponent:jsonFile];
-            NSString *destPath = [tempDir stringByAppendingPathComponent:jsonFile];
-            [fileManager copyItemAtPath:sourcePath toPath:destPath error:&error];
-            if (error) {
-                NSLog(@"Error copying file %@: %@", jsonFile, error);
-            }
-        }
-    }
-    
-    // Create sharing message
-    NSString *message = [NSString stringWithFormat:@"I've captured %ld AR photos with motion and location data!", (long)self.viewModel.photoCount];
-    
-    // Create activity view controller
-    NSMutableArray *activityItems = [NSMutableArray array];
-    [activityItems addObject:message];
-    [activityItems addObject:[NSURL fileURLWithPath:tempDir]];
-    
-    UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:nil];
-    
-    // Present the sharing dialog
-    [self presentViewController:activityVC animated:YES completion:nil];
-    
-    // Clean up temp directory after sharing
-    activityVC.completionWithItemsHandler = ^(UIActivityType __nullable activityType, BOOL completed, NSArray * __nullable returnedItems, NSError * __nullable activityError) {
-        [fileManager removeItemAtPath:tempDir error:nil];
-    };
+    [self.notificationStackView addArrangedSubview:label];
+    [self.view layoutIfNeeded];
+    [self.view bringSubviewToFront:self.notificationStackView];
+    [UIView animateWithDuration:0.5 delay:2.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+        label.alpha = 0;
+    } completion:^(BOOL finished) {
+        [self.notificationStackView removeArrangedSubview:label];
+        [label removeFromSuperview];
+    }];
 }
 
 - (UIImage *)createThumbnailFromImage:(UIImage *)image {
