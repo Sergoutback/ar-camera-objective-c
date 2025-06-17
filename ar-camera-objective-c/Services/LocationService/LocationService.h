@@ -1,11 +1,14 @@
 #import <Foundation/Foundation.h>
-#import "LocationServiceProtocol.h"
+#import <CoreLocation/CoreLocation.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface LocationService : NSObject <LocationServiceProtocol, CLLocationManagerDelegate>
+@interface LocationService : NSObject
 
-- (instancetype)init;
+@property (nonatomic, strong, readonly) CLLocation *currentLocation;
+
+- (void)startLocationUpdates;
+- (void)stopLocationUpdates;
 
 @end
 

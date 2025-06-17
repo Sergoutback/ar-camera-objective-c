@@ -21,11 +21,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Camera access is required for AR photo capture</string>
+	<string>We need camera access to provide AR features.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Location access is required for photo metadata</string>
+	<string>We need your location to provide accurate AR positioning information.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>Motion data is required for photo metadata</string>
+	<string>We need motion data to provide accurate AR positioning information.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo library access is required to save captured photos</string>
 	<key>UIApplicationSceneManifest</key>
@@ -56,5 +56,13 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>MetalCaptureEnabled</key>
+	<false/>
+	<key>MetalAPIValidation</key>
+	<false/>
+	<key>MetalShaderValidation</key>
+	<false/>
+	<key>MetalFastMathEnabled</key>
+	<true/>
 </dict>
 </plist>

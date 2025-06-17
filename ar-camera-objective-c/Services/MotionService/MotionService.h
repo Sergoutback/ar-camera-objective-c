@@ -1,11 +1,14 @@
 #import <Foundation/Foundation.h>
-#import "MotionServiceProtocol.h"
+#import <CoreMotion/CoreMotion.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface MotionService : NSObject <MotionServiceProtocol>
+@interface MotionService : NSObject
 
-- (instancetype)init;
+@property (nonatomic, strong, readonly) CMDeviceMotion *currentMotion;
+
+- (void)startMotionUpdates;
+- (void)stopMotionUpdates;
 
 @end
 

@@ -5,8 +5,10 @@
 @interface ARCameraViewModel ()
 
 @property (nonatomic, strong) id<ARServiceProtocol> arService;
-@property (nonatomic, strong) id<MotionServiceProtocol> motionService;
-@property (nonatomic, strong) id<LocationServiceProtocol> locationService;
+@property (nonatomic, strong) MotionService *motionService;
+@property (nonatomic, strong) LocationService *locationService;
+@property (nonatomic, strong) PhotoService *photoService;
+@property (nonatomic, strong) ARSpaceService *spaceService;
 @property (nonatomic, strong) NSMutableArray<NSDictionary *> *photoMetaArray;
 @property (nonatomic, assign) NSInteger photoCount;
 
@@ -15,13 +17,17 @@
 @implementation ARCameraViewModel
 
 - (instancetype)initWithARService:(id<ARServiceProtocol>)arService
-                    motionService:(id<MotionServiceProtocol>)motionService
-                  locationService:(id<LocationServiceProtocol>)locationService {
+                    motionService:(MotionService *)motionService
+                  locationService:(LocationService *)locationService
+                    photoService:(PhotoService *)photoService
+                    spaceService:(ARSpaceService *)spaceService {
     self = [super init];
     if (self) {
         _arService = arService;
         _motionService = motionService;
         _locationService = locationService;
+        _photoService = photoService;
+        _spaceService = spaceService;
         _photoMetaArray = [NSMutableArray array];
         _photoCount = 0;
     }
@@ -40,79 +46,44 @@
     [self.locationService stopLocationUpdates];
 }
 
-- (void)capturePhotoWithCompletion:(void (^)(UIImage * _Nullable, NSDictionary * _Nullable, NSError * _Nullable))completion {
+- (void)resetSession {
+    [self.arService resetARSession];
+    [self.photoMetaArray removeAllObjects];
+    self.photoCount = 0;
+}
+
+- (void)capturePhotoWithCompletion:(void (^)(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error))completion {
     [self.arService capturePhotoWithCompletion:^(UIImage * _Nullable image, NSError * _Nullable error) {
         if (error) {
-            completion(nil, nil, error);
+            if (completion) {
+                completion(nil, error);
+            }
             return;
         }
         
-        [self.motionService getCurrentMotionWithCompletion:^(CMDeviceMotion * _Nullable motion, NSError * _Nullable motionError) {
-            [self.locationService getCurrentLocationWithCompletion:^(CLLocation * _Nullable location, NSError * _Nullable locationError) {
-                NSMutableDictionary *metadata = [NSMutableDictionary dictionary];
-                
-                // ARKit metadata
-                simd_float4x4 transform = [self.arService currentCameraTransform];
-                matrix_float3x3 intrinsics = [self.arService currentCameraIntrinsics];
+        if (image) {
+            // Get current camera position relative to initial anchor
+            matrix_float4x4 cameraTransform = [self.arService currentCameraTransform];
                 simd_float3 eulerAngles = [self.arService currentCameraEulerAngles];
-                NSTimeInterval arTimestamp = [self.arService currentFrameTimestamp];
-                
-                metadata[@"arTransform"] = @[@[@(transform.columns[0][0]), @(transform.columns[0][1]), @(transform.columns[0][2]), @(transform.columns[0][3])],
-                                               @[@(transform.columns[1][0]), @(transform.columns[1][1]), @(transform.columns[1][2]), @(transform.columns[1][3])],
-                                               @[@(transform.columns[2][0]), @(transform.columns[2][1]), @(transform.columns[2][2]), @(transform.columns[2][3])],
-                                               @[@(transform.columns[3][0]), @(transform.columns[3][1]), @(transform.columns[3][2]), @(transform.columns[3][3])]];
-                metadata[@"arIntrinsics"] = @[@[@(intrinsics.columns[0][0]), @(intrinsics.columns[0][1]), @(intrinsics.columns[0][2])],
-                                                @[@(intrinsics.columns[1][0]), @(intrinsics.columns[1][1]), @(intrinsics.columns[1][2])],
-                                                @[@(intrinsics.columns[2][0]), @(intrinsics.columns[2][1]), @(intrinsics.columns[2][2])]];
-                metadata[@"arEulerAngles"] = @[@(eulerAngles.x), @(eulerAngles.y), @(eulerAngles.z)];
-                metadata[@"arTimestamp"] = @(arTimestamp);
-                
-                // Motion metadata
-                if (motion) {
-                    metadata[@"gyroRotationRate"] = @[@(motion.rotationRate.x), @(motion.rotationRate.y), @(motion.rotationRate.z)];
-                    metadata[@"gyroAttitude"] = @[@(motion.attitude.pitch), @(motion.attitude.roll), @(motion.attitude.yaw)];
-                } else {
-                    metadata[@"gyroRotationRate"] = [NSNull null];
-                    metadata[@"gyroAttitude"] = [NSNull null];
-                }
-                
-                // Location metadata
-                if (location) {
-                    metadata[@"latitude"] = @(location.coordinate.latitude);
-                    metadata[@"longitude"] = @(location.coordinate.longitude);
-                    metadata[@"altitude"] = @(location.altitude);
-                } else {
-                    metadata[@"latitude"] = [NSNull null];
-                    metadata[@"longitude"] = [NSNull null];
-                    metadata[@"altitude"] = [NSNull null];
-                }
-                
-                // Timestamp
-                metadata[@"timestamp"] = @([[NSDate date] timeIntervalSince1970]);
-                
-                // Остальные поля для совместимости
-                metadata[@"relativeGyroAttitude"] = [NSNull null];
-                metadata[@"relativeEulerAngles"] = [NSNull null];
-                metadata[@"relativePosition"] = [NSNull null];
-                metadata[@"gyroEulerAngles"] = [NSNull null];
-                metadata[@"focalLength"] = [NSNull null];
-                metadata[@"sensorSize"] = [NSNull null];
-                metadata[@"resolution"] = [NSNull null];
-                metadata[@"principalPoint"] = [NSNull null];
-                
-                [self.photoMetaArray addObject:metadata];
+            
+            // Create photo position
+            NSString *photoId = [[NSUUID UUID] UUIDString];
+            PhotoPosition *photoPosition = [[PhotoPosition alloc] initWithPhotoId:photoId
+                                                                relativePosition:SCNVector3Make(cameraTransform.columns[3].x,
+                                                                                               cameraTransform.columns[3].y,
+                                                                                               cameraTransform.columns[3].z)
+                                                              relativeEulerAngles:SCNVector3Make(eulerAngles.x,
+                                                                                                eulerAngles.y,
+                                                                                                eulerAngles.z)
+                                                                      thumbnail:image];
+            
                 self.photoCount++;
                 
-                completion(image, metadata, nil);
-            }];
-        }];
+            if (completion) {
+                completion(photoPosition, nil);
+            }
+        }
     }];
-}
-
-- (void)resetSession {
-    [self.arService resetARSession];
-    self.photoCount = 0;
-    [self.photoMetaArray removeAllObjects];
 }
 
 @end 

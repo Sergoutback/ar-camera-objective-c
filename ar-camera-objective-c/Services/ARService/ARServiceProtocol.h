@@ -1,12 +1,15 @@
 #import <Foundation/Foundation.h>
 #import <ARKit/ARKit.h>
 
+@protocol ARServiceDelegate;
+
 NS_ASSUME_NONNULL_BEGIN
 
 @protocol ARServiceProtocol <NSObject>
 
 @property (nonatomic, strong, readonly) ARSCNView *sceneView;
 @property (nonatomic, strong, readonly) ARSession *session;
+@property (nonatomic, weak) id<ARServiceDelegate> delegate;
 
 - (void)setupAR;
 - (void)startARSession;

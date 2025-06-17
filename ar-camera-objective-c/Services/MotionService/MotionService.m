@@ -13,20 +13,18 @@
     self = [super init];
     if (self) {
         _motionManager = [[CMMotionManager alloc] init];
-        _motionManager.deviceMotionUpdateInterval = 0.1;
+        _motionManager.deviceMotionUpdateInterval = 1.0 / 60.0;
     }
     return self;
 }
 
 - (void)startMotionUpdates {
-    if (self.motionManager.isDeviceMotionAvailable) {
+    if (self.motionManager.deviceMotionAvailable) {
         [self.motionManager startDeviceMotionUpdatesToQueue:[NSOperationQueue mainQueue]
                                                withHandler:^(CMDeviceMotion * _Nullable motion, NSError * _Nullable error) {
-            if (error) {
-                NSLog(@"Error getting motion updates: %@", error);
-                return;
+            if (motion) {
+                self.currentMotion = motion;
             }
-            self.currentMotion = motion;
         }];
     }
 }

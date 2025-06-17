@@ -7,10 +7,14 @@
  */
 
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
+#import <ARKit/ARKit.h>
 #import "../Services/ARService/ARServiceProtocol.h"
-#import "../Services/MotionService/MotionServiceProtocol.h"
-#import "../Services/LocationService/LocationServiceProtocol.h"
+#import "../Services/ARService/ARService.h"
+#import "../Services/MotionService/MotionService.h"
+#import "../Services/LocationService/LocationService.h"
+#import "../Services/PhotoService/PhotoService.h"
+#import "../Services/ARSpaceService/ARSpaceService.h"
+#import "../Models/PhotoPosition.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -29,10 +33,16 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, readonly) id<ARServiceProtocol> arService;
 
 /// The motion service used for device motion data
-@property (nonatomic, strong, readonly) id<MotionServiceProtocol> motionService;
+@property (nonatomic, strong, readonly) MotionService *motionService;
 
 /// The location service used for location data
-@property (nonatomic, strong, readonly) id<LocationServiceProtocol> locationService;
+@property (nonatomic, strong, readonly) LocationService *locationService;
+
+/// The photo service used for photo-related functionality
+@property (nonatomic, strong, readonly) PhotoService *photoService;
+
+/// The space service used for space-related functionality
+@property (nonatomic, strong, readonly) ARSpaceService *spaceService;
 
 /// Array of metadata for captured photos
 @property (nonatomic, strong, readonly) NSMutableArray<NSDictionary *> *photoMetaArray;
@@ -46,11 +56,15 @@ NS_ASSUME_NONNULL_BEGIN
  * @param arService The AR service to use for camera functionality
  * @param motionService The motion service to use for device motion data
  * @param locationService The location service to use for location data
+ * @param photoService The photo service to use for photo-related functionality
+ * @param spaceService The space service to use for space-related functionality
  * @return An initialized instance of ARCameraViewModel
  */
 - (instancetype)initWithARService:(id<ARServiceProtocol>)arService
-                    motionService:(id<MotionServiceProtocol>)motionService
-                  locationService:(id<LocationServiceProtocol>)locationService;
+                    motionService:(MotionService *)motionService
+                  locationService:(LocationService *)locationService
+                    photoService:(PhotoService *)photoService
+                    spaceService:(ARSpaceService *)spaceService;
 
 /**
  * @brief Starts all services
@@ -73,7 +87,7 @@ NS_ASSUME_NONNULL_BEGIN
  *                  The block receives the captured image, metadata dictionary,
  *                  and any error that occurred during capture
  */
-- (void)capturePhotoWithCompletion:(void (^)(UIImage * _Nullable image, NSDictionary * _Nullable metadata, NSError * _Nullable error))completion;
+- (void)capturePhotoWithCompletion:(void (^)(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error))completion;
 
 /**
  * @brief Resets the camera session

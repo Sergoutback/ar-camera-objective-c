@@ -1,21 +1,35 @@
 #import "ViewController.h"
+#import "Services/ARService/ARServiceProtocol.h"
 #import "Services/ARService/ARService.h"
 #import "Services/MotionService/MotionService.h"
 #import "Services/LocationService/LocationService.h"
 #import "Services/PhotoService/PhotoService.h"
+#import "Services/ARSpaceService/ARSpaceService.h"
+#import "Views/ARCanvasView.h"
+#import "ViewModels/ARCameraViewModel.h"
+#import "Models/PhotoPosition.h"
 #import "Views/ErrorView.h"
 #import <AVFoundation/AVFoundation.h>
 
-@interface ViewController ()
+@interface ViewController () <ARServiceDelegate>
 
+@property (nonatomic, strong) ARCanvasView *canvasView;
 @property (nonatomic, strong) ARCameraViewModel *viewModel;
-@property (nonatomic, strong) id<PhotoServiceProtocol> photoService;
+@property (nonatomic, strong) PhotoService *photoService;
+@property (nonatomic, strong) NSMutableArray<PhotoPosition *> *photoMetaArray;
+@property (nonatomic, strong) id<ARServiceProtocol> arService;
+@property (nonatomic, strong) MotionService *motionService;
+@property (nonatomic, strong) LocationService *locationService;
+@property (nonatomic, strong) ARSpaceService *spaceService;
+@property (nonatomic, assign) NSInteger lastShareCount;
+@property (nonatomic, strong) ARAnchor *initialAnchor;
 @property (nonatomic, strong) ErrorView *errorView;
 @property (nonatomic, strong) UIButton *captureButton;
 @property (nonatomic, strong) UIButton *resetButton;
 @property (nonatomic, strong) UIButton *exportButton;
 @property (nonatomic, strong) UILabel *photoCounterLabel;
-@property (nonatomic, assign) NSInteger lastShareCount;
+@property (nonatomic, strong) UIView *scanningStatusView;
+@property (nonatomic, strong) UILabel *scanningStatusLabel;
 
 @end
 
@@ -23,6 +37,14 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    
+    // Initialize AR Scene View first
+    self.sceneView = [[ARSCNView alloc] initWithFrame:self.view.bounds];
+    self.sceneView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self.view insertSubview:self.sceneView atIndex:0];
+    
+    // Initialize photo array
+    self.photoMetaArray = [NSMutableArray array];
     
     [self setupUI];
     [self requestCameraPermission];
@@ -43,21 +65,23 @@
 }
 
 - (void)initializeAR {
-    // Initialize AR Scene View
-    self.sceneView = [[ARSCNView alloc] initWithFrame:self.view.bounds];
-    self.sceneView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self.view insertSubview:self.sceneView atIndex:0];
+    // Initialize canvas view
+    self.canvasView = [[ARCanvasView alloc] initWithSceneView:self.sceneView];
     
     // Initialize services
-    ARService *arService = [[ARService alloc] initWithSceneView:self.sceneView];
-    MotionService *motionService = [[MotionService alloc] init];
-    LocationService *locationService = [[LocationService alloc] init];
+    self.arService = [[ARService alloc] initWithSceneView:self.sceneView];
+    self.arService.delegate = self;
+    self.motionService = [[MotionService alloc] init];
+    self.locationService = [[LocationService alloc] init];
     self.photoService = [[PhotoService alloc] init];
+    self.spaceService = [[ARSpaceService alloc] initWithSceneView:self.sceneView];
     
-    // Initialize view model
-    self.viewModel = [[ARCameraViewModel alloc] initWithARService:arService
-                                                    motionService:motionService
-                                                  locationService:locationService];
+    // Initialize ViewModel with all required services
+    self.viewModel = [[ARCameraViewModel alloc] initWithARService:self.arService
+                                                   motionService:self.motionService
+                                                 locationService:self.locationService
+                                                   photoService:self.photoService
+                                                   spaceService:self.spaceService];
     
     self.lastShareCount = 0;
     [self.viewModel startServices];
@@ -105,6 +129,22 @@
     self.photoCounterLabel.clipsToBounds = YES;
     [self.view addSubview:self.photoCounterLabel];
     
+    // Add scanning status view
+    self.scanningStatusView = [[UIView alloc] init];
+    self.scanningStatusView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.scanningStatusView.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.7];
+    self.scanningStatusView.layer.cornerRadius = 10;
+    [self.view addSubview:self.scanningStatusView];
+    
+    self.scanningStatusLabel = [[UILabel alloc] init];
+    self.scanningStatusLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    self.scanningStatusLabel.textColor = [UIColor whiteColor];
+    self.scanningStatusLabel.textAlignment = NSTextAlignmentCenter;
+    self.scanningStatusLabel.text = @"Move camera to scan walls and floor";
+    self.scanningStatusLabel.font = [UIFont systemFontOfSize:14];
+    self.scanningStatusLabel.numberOfLines = 0;
+    [self.scanningStatusView addSubview:self.scanningStatusLabel];
+    
     // Layout
     self.captureButton.translatesAutoresizingMaskIntoConstraints = NO;
     self.resetButton.translatesAutoresizingMaskIntoConstraints = NO;
@@ -134,8 +174,22 @@
         [self.photoCounterLabel.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:20],
         [self.photoCounterLabel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
         [self.photoCounterLabel.widthAnchor constraintEqualToConstant:80],
-        [self.photoCounterLabel.heightAnchor constraintEqualToConstant:30]
+        [self.photoCounterLabel.heightAnchor constraintEqualToConstant:30],
+        
+        [self.scanningStatusView.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
+        [self.scanningStatusView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:20],
+        [self.scanningStatusView.widthAnchor constraintEqualToConstant:250],
+        [self.scanningStatusView.heightAnchor constraintEqualToConstant:60],
+        
+        [self.scanningStatusLabel.centerXAnchor constraintEqualToAnchor:self.scanningStatusView.centerXAnchor],
+        [self.scanningStatusLabel.centerYAnchor constraintEqualToAnchor:self.scanningStatusView.centerYAnchor],
+        [self.scanningStatusLabel.leadingAnchor constraintEqualToAnchor:self.scanningStatusView.leadingAnchor constant:10],
+        [self.scanningStatusLabel.trailingAnchor constraintEqualToAnchor:self.scanningStatusView.trailingAnchor constant:-10]
     ]];
+    
+    // Initially hide capture button until space is scanned
+    self.captureButton.enabled = NO;
+    self.captureButton.alpha = 0.5;
     
     [self updatePhotoCounter];
 }
@@ -153,97 +207,109 @@
 #pragma mark - Actions
 
 - (void)captureButtonTapped {
-    [self.viewModel capturePhotoWithCompletion:^(UIImage * _Nullable image, NSDictionary * _Nullable metadata, NSError * _Nullable error) {
+    // Визуальный лог на экран
+    UILabel *logLabel = [[UILabel alloc] initWithFrame:CGRectMake(10, self.view.bounds.size.height-150, self.view.bounds.size.width-20, 40)];
+    logLabel.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.7];
+    logLabel.textColor = [UIColor whiteColor];
+    logLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightBold];
+    logLabel.textAlignment = NSTextAlignmentCenter;
+    logLabel.text = @"Capture button tapped!";
+    logLabel.layer.cornerRadius = 8;
+    logLabel.layer.masksToBounds = YES;
+    [self.view addSubview:logLabel];
+    [UIView animateWithDuration:0.5 delay:1.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+        logLabel.alpha = 0;
+    } completion:^(BOOL finished) {
+        [logLabel removeFromSuperview];
+    }];
+    
+    if (!self.canvasView.isInitialized) {
+        // Create initial anchor at current camera position
+        ARFrame *currentFrame = self.sceneView.session.currentFrame;
+        if (currentFrame) {
+            matrix_float4x4 transform = currentFrame.camera.transform;
+            self.initialAnchor = [[ARAnchor alloc] initWithTransform:transform];
+            [self.sceneView.session addAnchor:self.initialAnchor];
+            [self.canvasView initializeCanvasWithAnchor:self.initialAnchor];
+        }
+    }
+    
+    [self.viewModel capturePhotoWithCompletion:^(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error) {
         if (error) {
-            [self.errorView showError:error.localizedDescription withRetryAction:^{
-                [self captureButtonTapped];
-            }];
+            NSLog(@"Error capturing photo: %@", error);
             return;
         }
         
-        if (image) {
-            [self.photoService savePhoto:image metadata:metadata completion:^(BOOL success, NSError * _Nullable error) {
-                if (!success) {
-                    [self.errorView showError:error.localizedDescription withRetryAction:^{
-                        [self.photoService savePhoto:image metadata:metadata completion:nil];
-                    }];
-                }
-                [self updatePhotoCounter];
-            }];
+        if (photoPosition) {
+            [self.photoMetaArray addObject:photoPosition];
+            [self updatePhotoCounter];
+            [self.canvasView addPhotoThumbnail:photoPosition];
         }
     }];
 }
 
 - (void)resetButtonTapped {
-    [self.viewModel resetSession];
+    [self.arService resetARSession];
+    [self.canvasView resetCanvas];
+    [self.photoMetaArray removeAllObjects];
     [self updatePhotoCounter];
+    // Сбросим статус сканирования
+    self.scanningStatusLabel.text = @"Move camera to scan walls and floor";
+    self.scanningStatusView.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.7];
+    self.scanningStatusView.alpha = 1.0;
+    self.captureButton.enabled = NO;
+    self.captureButton.alpha = 0.5;
 }
 
 - (void)exportButtonTapped {
-    if (self.viewModel.photoCount == 0) {
-        [self.errorView showError:@"No photos to export" withRetryAction:nil];
-        return;
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Export"
+                                                                   message:@"Export is not implemented yet."
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)updatePhotoCounter {
+    self.photoCounterLabel.text = [NSString stringWithFormat:@"Photos: %lu", (unsigned long)self.photoMetaArray.count];
+}
+
+#pragma mark - ARServiceDelegate
+
+- (void)didUpdateCameraPosition:(SCNVector3)position eulerAngles:(SCNVector3)eulerAngles {
+    if (self.canvasView.isInitialized) {
+        [self.canvasView updateReticlePosition:position eulerAngles:eulerAngles];
     }
-    
-    // Show loading indicator
-    UIActivityIndicatorView *activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
-    activityIndicator.center = self.view.center;
-    [self.view addSubview:activityIndicator];
-    [activityIndicator startAnimating];
-    
-    // Disable buttons during export
-    self.captureButton.enabled = NO;
-    self.resetButton.enabled = NO;
-    self.exportButton.enabled = NO;
-    
-    [self.photoService exportSessionData:^(NSURL * _Nullable sessionURL, NSError * _Nullable error) {
-        [activityIndicator stopAnimating];
-        [activityIndicator removeFromSuperview];
-        
-        // Re-enable buttons
-        self.captureButton.enabled = YES;
-        self.resetButton.enabled = YES;
-        self.exportButton.enabled = YES;
-        
-        if (error) {
-            [self.errorView showError:error.localizedDescription withRetryAction:^{
-                [self exportButtonTapped];
+}
+
+- (void)didUpdateSpaceScanningStatus:(BOOL)isScanned {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (isScanned) {
+            self.scanningStatusLabel.text = @"Space ready!\nYou can now take photos";
+            self.scanningStatusView.backgroundColor = [[UIColor greenColor] colorWithAlphaComponent:0.7];
+            self.captureButton.enabled = YES;
+            [UIView animateWithDuration:0.3 animations:^{
+                self.captureButton.alpha = 1.0;
+                self.captureButton.transform = CGAffineTransformMakeScale(1.15, 1.15);
+            } completion:^(BOOL finished) {
+                [UIView animateWithDuration:0.2 animations:^{
+                    self.captureButton.transform = CGAffineTransformIdentity;
+                }];
             }];
-            return;
+            // Hide status view after delay
+            [UIView animateWithDuration:0.5 delay:3.0 options:UIViewAnimationOptionCurveEaseOut animations:^{
+                self.scanningStatusView.alpha = 0;
+            } completion:nil];
+        } else {
+            self.scanningStatusLabel.text = @"Move camera to scan walls and floor";
+            self.scanningStatusView.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.7];
+            self.scanningStatusView.alpha = 1.0;
+            self.captureButton.enabled = NO;
+            self.captureButton.alpha = 0.5;
         }
-        
-        if (sessionURL) {
-            // Create activity view controller
-            NSMutableArray *activityItems = [NSMutableArray array];
-            [activityItems addObject:@"AR Session Export"];
-            [activityItems addObject:sessionURL];
-            
-            UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:nil];
-            
-            // Present the sharing dialog
-            [self presentViewController:activityVC animated:YES completion:nil];
-            
-            // Clean up after sharing
-            activityVC.completionWithItemsHandler = ^(UIActivityType __nullable activityType, BOOL completed, NSArray * __nullable returnedItems, NSError * __nullable activityError) {
-                NSFileManager *fileManager = [NSFileManager defaultManager];
-                [fileManager removeItemAtPath:sessionURL.path error:nil];
-            };
-        }
-    }];
+    });
 }
 
 #pragma mark - Private Methods
-
-- (void)updatePhotoCounter {
-    NSInteger currentCount = self.viewModel.photoCount;
-    self.photoCounterLabel.text = [NSString stringWithFormat:@"Photos: %ld", (long)currentCount];
-    
-    // Check if we need to show sharing dialog
-    if (currentCount > 0 && currentCount % 8 == 0 && currentCount != self.lastShareCount) {
-        self.lastShareCount = currentCount;
-        [self showSharingDialog];
-    }
-}
 
 - (void)showSharingDialog {
     // Get the metadata directory path
@@ -303,6 +369,35 @@
     activityVC.completionWithItemsHandler = ^(UIActivityType __nullable activityType, BOOL completed, NSArray * __nullable returnedItems, NSError * __nullable activityError) {
         [fileManager removeItemAtPath:tempDir error:nil];
     };
+}
+
+- (UIImage *)createThumbnailFromImage:(UIImage *)image {
+    CGSize size = CGSizeMake(100, 100);
+    UIGraphicsBeginImageContextWithOptions(size, NO, 0.0);
+    [image drawInRect:CGRectMake(0, 0, size.width, size.height)];
+    UIImage *thumbnail = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return thumbnail;
+}
+
+- (SCNVector3)extractEulerAnglesFromMatrix:(matrix_float4x4)matrix {
+    // Extract rotation matrix
+    float m11 = matrix.columns[0].x;
+    float m12 = matrix.columns[0].y;
+    float m13 = matrix.columns[0].z;
+    float m21 = matrix.columns[1].x;
+    float m22 = matrix.columns[1].y;
+    float m23 = matrix.columns[1].z;
+    float m31 = matrix.columns[2].x;
+    float m32 = matrix.columns[2].y;
+    float m33 = matrix.columns[2].z;
+    
+    // Calculate euler angles
+    float pitch = asin(-m31);
+    float yaw = atan2(m11, m21);
+    float roll = atan2(m32, m33);
+    
+    return SCNVector3Make(pitch, yaw, roll);
 }
 
 @end 
