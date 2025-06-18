@@ -1,6 +1,7 @@
 #import "ARService.h"
 #import <simd/simd.h>
 #import <Metal/Metal.h>
+#import <ARKit/ARSCNPlaneGeometry.h>
 
 @interface ARService ()
 
@@ -95,7 +96,7 @@
 - (void)startARSession {
     if (!self.isSessionRunning) {
         ARWorldTrackingConfiguration *configuration = [[ARWorldTrackingConfiguration alloc] init];
-        configuration.planeDetection = ARPlaneDetectionHorizontal;
+        configuration.planeDetection = ARPlaneDetectionHorizontal | ARPlaneDetectionVertical;
         configuration.environmentTexturing = AREnvironmentTexturingNone;
         
         NSArray<ARVideoFormat *> *supportedFormats = [ARWorldTrackingConfiguration supportedVideoFormats];
@@ -349,17 +350,57 @@
 }
 
 - (SCNNode *)createPlaneNode:(ARPlaneAnchor *)planeAnchor {
-    SCNPlane *plane = [SCNPlane planeWithWidth:planeAnchor.extent.x height:planeAnchor.extent.z];
-    SCNMaterial *material = [SCNMaterial new];
-    material.diffuse.contents = [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:0.35];
-    material.lightingModelName = SCNLightingModelConstant;
-    plane.materials = @[material];
-    SCNNode *node = [SCNNode nodeWithGeometry:plane];
-    node.position = SCNVector3Make(planeAnchor.center.x, 0, planeAnchor.center.z);
-    if (planeAnchor.alignment == ARPlaneAnchorAlignmentVertical) {
-        node.transform = SCNMatrix4MakeRotation(-M_PI_2, 1, 0, 0);
+    // -------- Plane visualisation --------
+    // We draw two geometries for every detected plane:
+    // 1. A semi-transparent fill so the user sees the detected area.
+    // 2. A wireframe outline so the borders are clearly visible.
+
+    // 1) Build the base geometry using ARSCNPlaneGeometry so that it matches the exact
+    //    shape that ARKit has detected (can be a non-rectangular polygon).
+    id<MTLDevice> device = self.sceneView.device ?: MTLCreateSystemDefaultDevice();
+    if (!device) {
+        // Fallback – just return empty node if Metal is not available
+        return [SCNNode node];
     }
-    return node;
+
+    ARSCNPlaneGeometry *fillGeometry = [ARSCNPlaneGeometry planeGeometryWithDevice:device];
+    [fillGeometry updateFromPlaneGeometry:planeAnchor.geometry];
+
+    // Fill material (semi-transparent colour depends on plane alignment)
+    SCNMaterial *fillMaterial = [SCNMaterial material];
+    UIColor *planeColor = (planeAnchor.alignment == ARPlaneAnchorAlignmentHorizontal)
+        ? [UIColor colorWithRed:0.0 green:1.0 blue:0.0 alpha:0.6]   // Greenish for horizontal
+        : [UIColor colorWithRed:0.0 green:0.5 blue:1.0 alpha:0.6];   // Bluish for vertical
+    fillMaterial.diffuse.contents = planeColor;
+    // Ensure the fill is rendered even if underlying geometry matches the same plane:
+    fillMaterial.readsFromDepthBuffer = NO;    // render on top to avoid z-fighting with outline
+    fillMaterial.lightingModelName = SCNLightingModelConstant;
+    fillMaterial.doubleSided = YES;
+    fillGeometry.materials = @[fillMaterial];
+    SCNNode *fillNode = [SCNNode nodeWithGeometry:fillGeometry];
+
+    // 2) Build outline geometry – duplicate of the fill but rendered in line mode
+    ARSCNPlaneGeometry *outlineGeometry = [ARSCNPlaneGeometry planeGeometryWithDevice:device];
+    [outlineGeometry updateFromPlaneGeometry:planeAnchor.geometry];
+
+    SCNMaterial *outlineMaterial = [SCNMaterial material];
+    outlineMaterial.diffuse.contents = [UIColor whiteColor];
+    outlineMaterial.lightingModelName = SCNLightingModelConstant;
+    outlineMaterial.fillMode = SCNFillModeLines;   // Render as wireframe
+    outlineMaterial.doubleSided = YES;
+    outlineGeometry.materials = @[outlineMaterial];
+    SCNNode *outlineNode = [SCNNode nodeWithGeometry:outlineGeometry];
+
+    // Container node that holds both fill and outline
+    SCNNode *containerNode = [SCNNode node];
+    [containerNode addChildNode:fillNode];
+    [containerNode addChildNode:outlineNode];
+
+    // Position the node at the anchor's centre
+    containerNode.position = SCNVector3Make(planeAnchor.center.x, 0, planeAnchor.center.z);
+
+    // ARSCNPlaneGeometry already matches the anchor orientation, no extra rotation is needed.
+    return containerNode;
 }
 
 #pragma mark - ARSCNViewDelegate
@@ -388,12 +429,18 @@
         ARPlaneAnchor *planeAnchor = (ARPlaneAnchor *)anchor;
         [self.detectedPlanes addObject:planeAnchor];
         
-        // Update plane visualization
+        // Update plane visualization (both fill and outline geometries)
         SCNNode *planeNode = self.planeNodes[planeAnchor.identifier];
         if (planeNode) {
-            SCNPlane *plane = (SCNPlane *)planeNode.geometry;
-            plane.width = planeAnchor.extent.x;
-            plane.height = planeAnchor.extent.z;
+            // Iterate over the child nodes (fill & outline) and refresh their geometries
+            for (SCNNode *child in planeNode.childNodes) {
+                if ([child.geometry isKindOfClass:[ARSCNPlaneGeometry class]]) {
+                    ARSCNPlaneGeometry *geo = (ARSCNPlaneGeometry *)child.geometry;
+                    [geo updateFromPlaneGeometry:planeAnchor.geometry];
+                }
+            }
+
+            // Keep container node centred on the updated anchor
             planeNode.position = SCNVector3Make(planeAnchor.center.x, 0, planeAnchor.center.z);
         }
         
