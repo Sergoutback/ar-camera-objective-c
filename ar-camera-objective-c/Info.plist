@@ -15,11 +15,19 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>0.1</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>3</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>MetalAPIValidation</key>
+	<false/>
+	<key>MetalCaptureEnabled</key>
+	<false/>
+	<key>MetalFastMathEnabled</key>
+	<true/>
+	<key>MetalShaderValidation</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access to provide AR features.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -56,13 +64,5 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
-	<key>MetalCaptureEnabled</key>
-	<false/>
-	<key>MetalAPIValidation</key>
-	<false/>
-	<key>MetalShaderValidation</key>
-	<false/>
-	<key>MetalFastMathEnabled</key>
-	<true/>
 </dict>
 </plist>
