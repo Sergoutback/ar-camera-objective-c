@@ -66,6 +66,11 @@ NS_ASSUME_NONNULL_BEGIN
                     photoService:(PhotoService *)photoService
                     spaceService:(ARSpaceService *)spaceService;
 
+// Convenience initializer for backward compatibility (will create default PhotoService & SpaceService)
+- (instancetype)initWithARService:(id<ARServiceProtocol>)arService
+                    motionService:(MotionService *)motionService
+                  locationService:(LocationService *)locationService;
+
 /**
  * @brief Starts all services
  *

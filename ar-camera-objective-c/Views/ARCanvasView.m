@@ -206,4 +206,9 @@
     return image;
 }
 
+- (void)dealloc {
+    [self.reticleNode removeFromParentNode];
+    [self.canvasNode removeFromParentNode];
+}
+
 @end 

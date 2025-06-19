@@ -153,7 +153,7 @@
         NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
                                            code:2
                                        userInfo:@{NSLocalizedDescriptionKey: @"AR session is not running"}];
-        completion(nil, error);
+        if (completion) { completion(nil, error); }
         return;
     }
     
@@ -162,51 +162,54 @@
         NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
                                            code:3
                                        userInfo:@{NSLocalizedDescriptionKey: @"No current AR frame available"}];
-        completion(nil, error);
+        if (completion) { completion(nil, error); }
         return;
     }
     
-    // Create a CIImage from the captured frame
+    // Capture pixel buffer now (cheap) and perform heavy conversion off the main queue.
     CVPixelBufferRef pixelBuffer = currentFrame.capturedImage;
     if (!pixelBuffer) {
         NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
                                            code:4
                                        userInfo:@{NSLocalizedDescriptionKey: @"Failed to get camera image"}];
-        completion(nil, error);
+        if (completion) { completion(nil, error); }
         return;
     }
+    CFRetain(pixelBuffer); // retain for async usage
     
-    CIImage *ciImage = [CIImage imageWithCVPixelBuffer:pixelBuffer];
-    if (!ciImage) {
-        NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
-                                           code:5
-                                       userInfo:@{NSLocalizedDescriptionKey: @"Failed to create image from camera data"}];
-        completion(nil, error);
-        return;
-    }
-    
-    // Create a CIContext and convert CIImage to UIImage
-    CIContext *context = [CIContext contextWithOptions:nil];
-    CGImageRef cgImage = [context createCGImage:ciImage fromRect:ciImage.extent];
-    if (!cgImage) {
-        NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
-                                           code:6
-                                       userInfo:@{NSLocalizedDescriptionKey: @"Failed to create final image"}];
-        completion(nil, error);
-        return;
-    }
-    
-    UIImage *image = [UIImage imageWithCGImage:cgImage];
-    CGImageRelease(cgImage);
-    
-    if (image) {
-        completion(image, nil);
-    } else {
-        NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
-                                           code:7
-                                       userInfo:@{NSLocalizedDescriptionKey: @"Failed to create final image"}];
-        completion(nil, error);
-    }
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        CIImage *ciImage = [CIImage imageWithCVPixelBuffer:pixelBuffer];
+        if (!ciImage) {
+            NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
+                                               code:5
+                                           userInfo:@{NSLocalizedDescriptionKey: @"Failed to create image from camera data"}];
+            CFRelease(pixelBuffer);
+            dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(nil, error); });
+            return;
+        }
+        CIContext *context = [CIContext contextWithOptions:nil];
+        CGImageRef cgImage = [context createCGImage:ciImage fromRect:ciImage.extent];
+        CFRelease(pixelBuffer);
+        if (!cgImage) {
+            NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
+                                               code:6
+                                           userInfo:@{NSLocalizedDescriptionKey: @"Failed to create final image"}];
+            dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(nil, error); });
+            return;
+        }
+        UIImage *image = [UIImage imageWithCGImage:cgImage];
+        CGImageRelease(cgImage);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (image) {
+                completion(image, nil);
+            } else {
+                NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
+                                                   code:7
+                                               userInfo:@{NSLocalizedDescriptionKey: @"Failed to create final UIImage"}];
+                completion(nil, error);
+            }
+        });
+    });
 }
 
 - (void)placePhotoInAR:(UIImage *)photo atPosition:(SCNVector3)position {

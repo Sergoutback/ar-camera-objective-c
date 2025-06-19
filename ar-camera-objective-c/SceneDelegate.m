@@ -7,6 +7,13 @@
 
 #import "SceneDelegate.h"
 #import "ViewController.h"
+#import <ARKit/ARKit.h>
+#import "Services/ARService/ARService.h"
+#import "Services/MotionService/MotionService.h"
+#import "Services/LocationService/LocationService.h"
+#import "Services/PhotoService/PhotoService.h"
+#import "Services/ARSpaceService/ARSpaceService.h"
+#import "Services/ARService/ARServiceProtocol.h"
 
 @interface SceneDelegate ()
 
@@ -23,8 +30,23 @@
         self.window = [[UIWindow alloc] initWithFrame:windowFrame];
         self.window.windowScene = windowScene;
         
-        // Create and setup view controller
-        ViewController *viewController = [[ViewController alloc] init];
+        // Instantiate shared ARSCNView that will be passed to services and VC
+        ARSCNView *sceneView = [[ARSCNView alloc] initWithFrame:windowFrame];
+        
+        // Build services
+        id<ARServiceProtocol> arService = [[ARService alloc] initWithSceneView:sceneView];
+        MotionService *motionService = [[MotionService alloc] init];
+        LocationService *locationService = [[LocationService alloc] init];
+        PhotoService *photoService = [[PhotoService alloc] init];
+        ARSpaceService *spaceService = [[ARSpaceService alloc] initWithSceneView:sceneView];
+        
+        // Create and setup view controller with DI
+        ViewController *viewController = [[ViewController alloc] initWithSceneView:sceneView
+                                                                          arService:arService
+                                                                      motionService:motionService
+                                                                    locationService:locationService
+                                                                      photoService:photoService
+                                                                      spaceService:spaceService];
         UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:viewController];
         
         // Set root view controller and make window visible

@@ -2,7 +2,7 @@
 #import <Photos/Photos.h>
 
 @interface PhotoService ()
-@property (nonatomic, strong) NSMutableDictionary *photoCache;
+@property (nonatomic, strong) NSCache<NSString *, UIImage *> *photoCache;
 @property (nonatomic, strong) NSMutableArray *allPhotoMetadata;
 @property (nonatomic, strong) NSString *sessionId;
 @end
@@ -12,7 +12,9 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        self.photoCache = [NSMutableDictionary dictionary];
+        self.photoCache = [[NSCache alloc] init];
+        // Limit cache to last 100 images to prevent memory pressure
+        self.photoCache.countLimit = 100;
         self.allPhotoMetadata = [NSMutableArray array];
         self.sessionId = [[NSUUID UUID] UUIDString];
         
@@ -64,8 +66,8 @@
         // Generate unique identifier for this photo
         NSString *photoId = [[NSUUID UUID] UUIDString];
         
-        // Cache the image
-        self.photoCache[photoId] = image;
+        // Cache the image (will evict automatically if over limit)
+        [self.photoCache setObject:image forKey:photoId];
         
         // Form extended metadata
         NSMutableDictionary *meta = [metadata mutableCopy] ?: [NSMutableDictionary dictionary];
@@ -194,8 +196,10 @@
     // Save cached images
     dispatch_group_t group = dispatch_group_create();
     
-    for (NSString *photoId in self.photoCache) {
-        UIImage *image = self.photoCache[photoId];
+    for (NSDictionary *meta in self.allPhotoMetadata) {
+        NSString *photoId = meta[@"photoId"] ?: @"";
+        UIImage *image = [self.photoCache objectForKey:photoId];
+        if (!image) { continue; }
         
         // Save PNG
         dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{

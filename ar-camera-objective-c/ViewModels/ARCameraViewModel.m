@@ -1,6 +1,7 @@
 #import "ARCameraViewModel.h"
 #import "../Services/ARService/ARServiceProtocol.h"
 #import <simd/simd.h>
+#import <ARKit/ARKit.h>
 
 @interface ARCameraViewModel ()
 
@@ -15,6 +16,24 @@
 @end
 
 @implementation ARCameraViewModel
+
+- (instancetype)initWithARService:(id<ARServiceProtocol>)arService
+                    motionService:(MotionService *)motionService
+                  locationService:(LocationService *)locationService {
+    PhotoService *defaultPhotoService = [[PhotoService alloc] init];
+    ARSpaceService *defaultSpaceService = nil;
+    if (arService.sceneView) {
+        defaultSpaceService = [[ARSpaceService alloc] initWithSceneView:arService.sceneView];
+    } else {
+        ARSCNView *dummyView = [[ARSCNView alloc] initWithFrame:CGRectZero];
+        defaultSpaceService = [[ARSpaceService alloc] initWithSceneView:dummyView];
+    }
+    return [self initWithARService:arService
+                      motionService:motionService
+                    locationService:locationService
+                      photoService:defaultPhotoService
+                      spaceService:defaultSpaceService];
+}
 
 - (instancetype)initWithARService:(id<ARServiceProtocol>)arService
                     motionService:(MotionService *)motionService

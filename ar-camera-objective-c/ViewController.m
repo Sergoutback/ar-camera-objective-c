@@ -36,13 +36,54 @@
 
 @implementation ViewController
 
+#pragma mark - Dependency Injection Initializer
+
+- (instancetype)initWithSceneView:(ARSCNView *)sceneView
+                        arService:(id<ARServiceProtocol>)arService
+                    motionService:(MotionService *)motionService
+                  locationService:(LocationService *)locationService
+                    photoService:(PhotoService *)photoService
+                    spaceService:(ARSpaceService *)spaceService {
+    self = [super initWithNibName:nil bundle:nil];
+    if (self) {
+        _sceneView = sceneView;
+        _arService = arService;
+        _motionService = motionService;
+        _locationService = locationService;
+        _photoService = photoService;
+        _spaceService = spaceService;
+
+        // Configure delegate relationships
+        _arService.delegate = self;
+    }
+    return self;
+}
+
+// MARK: - unavailable default init
+- (instancetype)initWithCoder:(NSCoder *)coder {
+    NSAssert(NO, @"Use initWithSceneView:arService:... instead");
+    return [super initWithCoder:coder];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     
-    // Initialize AR Scene View first
-    self.sceneView = [[ARSCNView alloc] initWithFrame:self.view.bounds];
+    // Attach injected ARSCNView to the view hierarchy if it's not already added
+    self.sceneView.frame = self.view.bounds;
     self.sceneView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self.view insertSubview:self.sceneView atIndex:0];
+    if (!self.sceneView.superview) {
+        [self.view insertSubview:self.sceneView atIndex:0];
+    }
+    
+    // Build canvas view & view model using injected services
+    self.canvasView = [[ARCanvasView alloc] initWithSceneView:self.sceneView];
+    self.viewModel = [[ARCameraViewModel alloc] initWithARService:self.arService
+                                                   motionService:self.motionService
+                                                 locationService:self.locationService
+                                                   photoService:self.photoService
+                                                   spaceService:self.spaceService];
+    
+    // Note: Services will actually start after permission in initializeAR
     
     // Initialize photo array
     self.photoMetaArray = [NSMutableArray array];
@@ -66,24 +107,11 @@
 }
 
 - (void)initializeAR {
-    // Initialize canvas view
-    self.canvasView = [[ARCanvasView alloc] initWithSceneView:self.sceneView];
-    
-    // Initialize services
-    self.arService = [[ARService alloc] initWithSceneView:self.sceneView];
-    self.arService.delegate = self;
-    self.motionService = [[MotionService alloc] init];
-    self.locationService = [[LocationService alloc] init];
-    self.photoService = [[PhotoService alloc] init];
-    self.spaceService = [[ARSpaceService alloc] initWithSceneView:self.sceneView];
-    
-    // Initialize ViewModel with all required services
-    self.viewModel = [[ARCameraViewModel alloc] initWithARService:self.arService
-                                                   motionService:self.motionService
-                                                 locationService:self.locationService
-                                                   photoService:self.photoService
-                                                   spaceService:self.spaceService];
-    
+    // Ensure that services are running. If they are already running this is a no-op.
+    if (!self.viewModel) {
+        NSAssert(NO, @"ViewModel must be created in viewDidLoad before initializeAR is called");
+        return;
+    }
     self.lastShareCount = 0;
     [self.viewModel startServices];
 }
