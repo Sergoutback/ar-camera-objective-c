@@ -7,6 +7,21 @@
 @property (nonatomic, strong) NSString *sessionId;
 @end
 
+// Helper to rotate UIImage 90° clockwise (portrait upright)
+static UIImage *PSRotateImage90CW(UIImage *image) {
+    CGSize size = CGSizeMake(image.size.height, image.size.width);
+    UIGraphicsBeginImageContextWithOptions(size, NO, image.scale);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGContextTranslateCTM(ctx, size.width / 2.0, size.height / 2.0);
+    // CoreGraphics uses a flipped Y-axis; positive angle rotates clockwise visually.
+    CGContextRotateCTM(ctx, M_PI_2); // 90° clockwise (upright)
+    CGContextTranslateCTM(ctx, -image.size.width / 2.0, -image.size.height / 2.0);
+    [image drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
+    UIImage *rotated = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return rotated;
+}
+
 @implementation PhotoService
 
 - (instancetype)init {
@@ -201,17 +216,20 @@
         UIImage *image = [self.photoCache objectForKey:photoId];
         if (!image) { continue; }
         
+        // Rotate the image 90° clockwise to correct orientation for export
+        UIImage *exportImage = PSRotateImage90CW(image);
+        
         // Save PNG
         dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSString *pngPath = [pngDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.png", photoId]];
-            NSData *pngData = UIImagePNGRepresentation(image);
+            NSData *pngData = UIImagePNGRepresentation(exportImage);
             [pngData writeToFile:pngPath atomically:YES];
         });
         
         // Save HEIC
         dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
             NSString *heicPath = [heicDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.heic", photoId]];
-            NSData *heicData = UIImageJPEGRepresentation(image, 0.8);
+            NSData *heicData = UIImageJPEGRepresentation(exportImage, 0.8);
             [heicData writeToFile:heicPath atomically:YES];
         });
     }

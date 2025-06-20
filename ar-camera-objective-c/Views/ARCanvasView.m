@@ -98,7 +98,9 @@
 - (void)updatePhotoThumbnail:(PhotoPosition *)photoPosition {
     SCNNode *existingNode = self.photoNodes[photoPosition.photoId];
     if (existingNode) {
-        existingNode.position = photoPosition.relativePosition;
+        // Convert world space to canvas local
+        SCNVector3 localPosition = [self.canvasNode convertPosition:photoPosition.relativePosition fromNode:nil];
+        existingNode.position = localPosition;
         SCNVector3 e2 = photoPosition.relativeEulerAngles;
         e2.z = 0; // ignore roll
         existingNode.eulerAngles = e2;
@@ -155,9 +157,11 @@
     // Rotate +90° to compensate roll, then +180° to flip upside-down image
     planeNode.eulerAngles = SCNVector3Make(0, 0, M_PI_2 + M_PI);
     
-    // Wrapper node that carries world position/euler (raw camera values)
+    // Wrapper node that carries local position/euler relative to canvas
     SCNNode *wrapper = [SCNNode node];
-    wrapper.position = photoPosition.relativePosition;
+    // Convert world space position to canvas local space for stable placement
+    SCNVector3 localPosition = [self.canvasNode convertPosition:photoPosition.relativePosition fromNode:nil];
+    wrapper.position = localPosition;
     SCNVector3 e = photoPosition.relativeEulerAngles;
     e.z = 0; // ignore roll so portrait/landscape does not flip plane
     wrapper.eulerAngles = e;

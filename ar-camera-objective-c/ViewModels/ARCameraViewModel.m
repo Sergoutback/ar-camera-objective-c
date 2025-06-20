@@ -2,6 +2,7 @@
 #import "../Services/ARService/ARServiceProtocol.h"
 #import <simd/simd.h>
 #import <ARKit/ARKit.h>
+#import <UIKit/UIKit.h>
 
 @interface ARCameraViewModel ()
 
@@ -14,6 +15,20 @@
 @property (nonatomic, assign) NSInteger photoCount;
 
 @end
+
+// Helper to rotate UIImage 90° counter-clockwise (portrait upright)
+static UIImage *RotateImagePortrait(UIImage *image) {
+    CGSize size = CGSizeMake(image.size.height, image.size.width);
+    UIGraphicsBeginImageContextWithOptions(size, NO, image.scale);
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    CGContextTranslateCTM(ctx, size.width / 2.0, size.height / 2.0);
+    CGContextRotateCTM(ctx, M_PI_2);
+    CGContextTranslateCTM(ctx, -image.size.width / 2.0, -image.size.height / 2.0);
+    [image drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
+    UIImage *rotated = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return rotated;
+}
 
 @implementation ARCameraViewModel
 
@@ -99,7 +114,8 @@
                                                                                                 eulerAngles.z)
                                                                       thumbnail:image];
             // Сохраняем PNG-файл
-            NSData *pngData = UIImagePNGRepresentation(image);
+            UIImage *exportImage = RotateImagePortrait(image);
+            NSData *pngData = UIImagePNGRepresentation(exportImage);
             NSString *fileName = [NSString stringWithFormat:@"%@.png", photoId];
             NSString *cacheDir = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
             NSString *filePath = [cacheDir stringByAppendingPathComponent:fileName];
