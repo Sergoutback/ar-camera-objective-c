@@ -212,64 +212,6 @@
     });
 }
 
-- (void)placePhotoInAR:(UIImage *)photo atPosition:(SCNVector3)position {
-    if (!photo) return;
-    
-    // Create a plane node for the photo
-    SCNPlane *plane = [SCNPlane planeWithWidth:0.3 height:0.2];
-    SCNMaterial *material = [SCNMaterial new];
-    material.diffuse.contents = photo;
-    plane.materials = @[material];
-    
-    SCNNode *photoNode = [SCNNode nodeWithGeometry:plane];
-    
-    // Get camera position and orientation
-    SCNNode *cameraNode = self.sceneView.pointOfView;
-    if (cameraNode) {
-        // Get current camera transform
-        simd_float4x4 cameraTransform = self.sceneView.session.currentFrame.camera.transform;
-        
-        // Calculate position 0.5 meters in front of camera
-        simd_float4 forward = simd_make_float4(0, 0, -0.5, 1);
-        simd_float4 worldPosition = matrix_multiply(cameraTransform, forward);
-        
-        // Set photo position
-        photoNode.position = SCNVector3Make(worldPosition.x, worldPosition.y, worldPosition.z);
-        
-        // Get camera's forward direction
-        simd_float3 cameraForward = simd_make_float3(cameraTransform.columns[2].x,
-                                                    cameraTransform.columns[2].y,
-                                                    cameraTransform.columns[2].z);
-        
-        // Determine if we're looking at a wall (vertical) or floor (horizontal)
-        float verticalComponent = fabs(cameraForward.y);
-        BOOL isLookingAtWall = verticalComponent < 0.5; // Threshold for vertical vs horizontal
-        
-        // Create rotation matrix
-        SCNMatrix4 rotationMatrix = SCNMatrix4Identity;
-        
-        if (isLookingAtWall) {
-            // For walls, align with vertical plane
-            float yaw = atan2f(cameraForward.x, cameraForward.z);
-            rotationMatrix = SCNMatrix4MakeRotation(yaw + M_PI, 0, 1, 0);
-        } else {
-            // For floor/ceiling, align with horizontal plane
-            float yaw = atan2f(cameraForward.x, cameraForward.z);
-            rotationMatrix = SCNMatrix4MakeRotation(yaw + M_PI, 0, 1, 0);
-            // Add 90-degree rotation to make it parallel to floor
-            rotationMatrix = SCNMatrix4Rotate(rotationMatrix, M_PI_2, 1, 0, 0);
-        }
-        
-        // Apply rotation
-        photoNode.transform = rotationMatrix;
-    } else {
-        photoNode.position = position;
-    }
-    
-    // Add to scene
-    [self.sceneView.scene.rootNode addChildNode:photoNode];
-}
-
 - (void)placePhotoInAR:(UIImage *)photo atPosition:(SCNVector3)position withRotation:(SCNVector3)rotation {
     if (!photo) return;
     
@@ -284,43 +226,21 @@
     // Get camera position and orientation
     SCNNode *cameraNode = self.sceneView.pointOfView;
     if (cameraNode) {
-        // Get current camera transform
+        // Current camera transform
         simd_float4x4 cameraTransform = self.sceneView.session.currentFrame.camera.transform;
-        
-        // Calculate position 0.5 meters in front of camera
-        simd_float4 forward = simd_make_float4(0, 0, -0.5, 1);
-        simd_float4 worldPosition = matrix_multiply(cameraTransform, forward);
-        
-        // Set photo position
+
+        // 1. Position: use the current camera position (no forward offset)
+        simd_float4 worldPosition = cameraTransform.columns[3];
         photoNode.position = SCNVector3Make(worldPosition.x, worldPosition.y, worldPosition.z);
-        
-        // Get camera's forward direction
-        simd_float3 cameraForward = simd_make_float3(cameraTransform.columns[2].x,
-                                                    cameraTransform.columns[2].y,
-                                                    cameraTransform.columns[2].z);
-        
-        // Determine if we're looking at a wall (vertical) or floor (horizontal)
-        float verticalComponent = fabs(cameraForward.y);
-        BOOL isLookingAtWall = verticalComponent < 0.5; // Threshold for vertical vs horizontal
-        
-        // Create rotation matrix
-        SCNMatrix4 rotationMatrix = SCNMatrix4Identity;
-        
-        if (isLookingAtWall) {
-            // For walls, align with vertical plane
-            float yaw = atan2f(cameraForward.x, cameraForward.z);
-            rotationMatrix = SCNMatrix4MakeRotation(yaw + M_PI, 0, 1, 0);
-        } else {
-            // For floor/ceiling, align with horizontal plane
-            float yaw = atan2f(cameraForward.x, cameraForward.z);
-            rotationMatrix = SCNMatrix4MakeRotation(yaw + M_PI, 0, 1, 0);
-            // Add 90-degree rotation to make it parallel to floor
-            rotationMatrix = SCNMatrix4Rotate(rotationMatrix, M_PI_2, 1, 0, 0);
-        }
-        
-        // Apply rotation
-        photoNode.transform = rotationMatrix;
-        
+
+        // 2. Orientation: use full camera yaw + pitch + roll
+        SCNVector3 camEuler = [self extractEulerAnglesFromMatrix:cameraTransform];
+        float pitch = camEuler.x;           // around X
+        float yaw   = camEuler.y + M_PI;    // flip 180° so the photo faces the camera
+        float roll  = camEuler.z + M_PI_2;  // compensate portrait -90° roll
+
+        photoNode.eulerAngles = SCNVector3Make(pitch, yaw, roll);
+
         // Apply additional rotations
         photoNode.eulerAngles = SCNVector3Make(
             photoNode.eulerAngles.x + rotation.x,

@@ -99,7 +99,9 @@
     SCNNode *existingNode = self.photoNodes[photoPosition.photoId];
     if (existingNode) {
         existingNode.position = photoPosition.relativePosition;
-        existingNode.eulerAngles = photoPosition.relativeEulerAngles;
+        SCNVector3 e2 = photoPosition.relativeEulerAngles;
+        e2.z = 0; // ignore roll
+        existingNode.eulerAngles = e2;
         
         // Update thumbnail if needed
         SCNMaterial *material = existingNode.geometry.firstMaterial;
@@ -148,16 +150,24 @@
     material.diffuse.contents = photoPosition.thumbnail;
     plane.materials = @[material];
     
-    // Create node
-    SCNNode *node = [SCNNode nodeWithGeometry:plane];
-    node.position = photoPosition.relativePosition;
-    node.eulerAngles = photoPosition.relativeEulerAngles;
-    node.name = photoPosition.photoId;
+    // Plane node rotated +90° around Z to compensate portrait roll (visual only)
+    SCNNode *planeNode = [SCNNode nodeWithGeometry:plane];
+    // Rotate +90° to compensate roll, then +180° to flip upside-down image
+    planeNode.eulerAngles = SCNVector3Make(0, 0, M_PI_2 + M_PI);
     
-    NSLog(@"Created photo node at position: (%.2f, %.2f, %.2f)", 
-          node.position.x, node.position.y, node.position.z);
+    // Wrapper node that carries world position/euler (raw camera values)
+    SCNNode *wrapper = [SCNNode node];
+    wrapper.position = photoPosition.relativePosition;
+    SCNVector3 e = photoPosition.relativeEulerAngles;
+    e.z = 0; // ignore roll so portrait/landscape does not flip plane
+    wrapper.eulerAngles = e;
+    wrapper.name = photoPosition.photoId;
+    [wrapper addChildNode:planeNode];
     
-    return node;
+    NSLog(@"Created photo node at position: (%.2f, %.2f, %.2f)",
+          wrapper.position.x, wrapper.position.y, wrapper.position.z);
+    
+    return wrapper;
 }
 
 - (SCNNode *)createReticleNode {

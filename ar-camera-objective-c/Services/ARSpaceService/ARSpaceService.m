@@ -61,7 +61,9 @@
     SCNNode *existingNode = self.photoNodes[photoPosition.photoId];
     if (existingNode) {
         existingNode.position = photoPosition.relativePosition;
-        existingNode.eulerAngles = photoPosition.relativeEulerAngles;
+        SCNVector3 e2 = photoPosition.relativeEulerAngles;
+        e2.z = 0;
+        existingNode.eulerAngles = e2;
         
         // Update thumbnail if needed
         SCNMaterial *material = existingNode.geometry.firstMaterial;
@@ -112,13 +114,20 @@
     material.doubleSided = YES;
     plane.materials = @[material];
     
-    // Create node
-    SCNNode *node = [SCNNode nodeWithGeometry:plane];
-    node.position = photoPosition.relativePosition;
-    node.eulerAngles = photoPosition.relativeEulerAngles;
-    node.name = photoPosition.photoId;
+    // Plane node with +90° Z rotation (visual compensation only)
+    SCNNode *planeNode = [SCNNode nodeWithGeometry:plane];
+    planeNode.eulerAngles = SCNVector3Make(0, 0, M_PI_2 + M_PI);
     
-    return node;
+    // Wrapper node with raw orientation
+    SCNNode *wrapper = [SCNNode node];
+    wrapper.position = photoPosition.relativePosition;
+    SCNVector3 e = photoPosition.relativeEulerAngles;
+    e.z = 0; // ignore roll
+    wrapper.eulerAngles = e;
+    wrapper.name = photoPosition.photoId;
+    [wrapper addChildNode:planeNode];
+    
+    return wrapper;
 }
 
 - (SCNNode *)createPreviewNode {
