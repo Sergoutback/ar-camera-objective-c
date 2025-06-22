@@ -11,6 +11,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)requestPhotoLibraryPermission:(void (^)(BOOL granted))completion;
 
+// Exports cached PNG/HEIC images and metadata into a temporary directory and returns its URL
+- (void)exportSessionData:(void (^)(NSURL * _Nullable sessionURL, NSError * _Nullable error))completion;
+
 @end
 
 NS_ASSUME_NONNULL_END 

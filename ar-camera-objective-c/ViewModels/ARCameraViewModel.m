@@ -86,7 +86,20 @@ static UIImage *RotateImagePortrait(UIImage *image) {
     self.photoCount = 0;
 }
 
-- (void)capturePhotoWithCompletion:(void (^)(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error))completion {
+- (NSString *)generatePhotoId {
+    NSInteger photoNumber = self.photoCount + 1;
+    NSDateFormatter *df = [[NSDateFormatter alloc] init];
+    df.dateFormat = @"yyyyMMdd_HHmmss";
+    NSString *dateStr = [df stringFromDate:[NSDate date]];
+    return [NSString stringWithFormat:@"Photo_%ld_%@", (long)photoNumber, dateStr];
+}
+
+- (void)capturePhotoWithCompletion:(void (^)(PhotoPosition * _Nullable, NSError * _Nullable))completion {
+    NSString *photoId = [self generatePhotoId];
+    [self capturePhotoWithId:photoId completion:completion];
+}
+
+- (void)capturePhotoWithId:(NSString *)photoId completion:(void (^)(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error))completion {
     [self.arService capturePhotoWithCompletion:^(UIImage * _Nullable image, NSError * _Nullable error) {
         if (error) {
             if (completion) {
@@ -94,17 +107,9 @@ static UIImage *RotateImagePortrait(UIImage *image) {
             }
             return;
         }
-        
         if (image) {
-            // Get current camera position relative to initial anchor
             matrix_float4x4 cameraTransform = [self.arService currentCameraTransform];
             simd_float3 eulerAngles = [self.arService currentCameraEulerAngles];
-            // Формируем photoId: Photo_<номер>_<yyyyMMdd_HHmmss>
-            NSInteger photoNumber = self.photoCount + 1;
-            NSDateFormatter *df = [[NSDateFormatter alloc] init];
-            df.dateFormat = @"yyyyMMdd_HHmmss";
-            NSString *dateStr = [df stringFromDate:[NSDate date]];
-            NSString *photoId = [NSString stringWithFormat:@"Photo_%ld_%@", (long)photoNumber, dateStr];
             PhotoPosition *photoPosition = [[PhotoPosition alloc] initWithPhotoId:photoId
                                                                 relativePosition:SCNVector3Make(cameraTransform.columns[3].x,
                                                                                                cameraTransform.columns[3].y,
@@ -113,7 +118,6 @@ static UIImage *RotateImagePortrait(UIImage *image) {
                                                                                                 eulerAngles.y,
                                                                                                 eulerAngles.z)
                                                                       thumbnail:image];
-            // Сохраняем PNG-файл
             UIImage *exportImage = RotateImagePortrait(image);
             NSData *pngData = UIImagePNGRepresentation(exportImage);
             NSString *fileName = [NSString stringWithFormat:@"%@.png", photoId];

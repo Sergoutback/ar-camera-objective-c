@@ -29,9 +29,26 @@
     return self;
 }
 
+// Helper to ensure SceneKit mutations happen on the main thread
+static inline BOOL EnsureMainThread(void (^block)(void)) {
+    if (NSThread.isMainThread) {
+        return NO; // already on main
+    }
+    dispatch_async(dispatch_get_main_queue(), block);
+    return YES; // scheduled on main, caller must return
+}
+
 - (void)initializeCanvasWithAnchor:(ARAnchor *)anchor {
+    if (EnsureMainThread(^{ [self initializeCanvasWithAnchor:anchor]; })) { return; }
+    
     if (self.isInitialized) {
         return;
+    }
+    
+    // Safety: remove any previous PhotoCanvas that may still be in the scene
+    SCNNode *oldCanvas = [self.sceneView.scene.rootNode childNodeWithName:@"PhotoCanvas" recursively:YES];
+    if (oldCanvas) {
+        [oldCanvas removeFromParentNode];
     }
     
     // Get current camera transform
@@ -78,6 +95,8 @@
 }
 
 - (void)addPhotoThumbnail:(PhotoPosition *)photoPosition {
+    if (EnsureMainThread(^{ [self addPhotoThumbnail:photoPosition]; })) { return; }
+    
     if (!self.isInitialized || !photoPosition.thumbnail) {
         NSLog(@"Cannot add photo: Canvas not initialized or no thumbnail");
         return;
@@ -85,6 +104,21 @@
     
     NSLog(@"Adding photo thumbnail with ID: %@", photoPosition.photoId);
     
+    [SCNTransaction begin];
+    [SCNTransaction setAnimationDuration:0];
+    // Remove old node with same photoId if it exists (prevent duplicate insertion assertions)
+    SCNNode *existingNode = self.photoNodes[photoPosition.photoId];
+    if (existingNode) {
+        [existingNode removeFromParentNode];
+        [self.photoNodes removeObjectForKey:photoPosition.photoId];
+    }
+
+    // Additionally, check direct children of canvasNode in case dictionary was out of sync
+    SCNNode *dupChild = [self.canvasNode childNodeWithName:photoPosition.photoId recursively:NO];
+    if (dupChild) {
+        [dupChild removeFromParentNode];
+    }
+
     SCNNode *photoNode = [self createPhotoNode:photoPosition];
     if (photoNode) {
         [self.canvasNode addChildNode:photoNode];
@@ -93,9 +127,12 @@
     } else {
         NSLog(@"Failed to create photo node");
     }
+    [SCNTransaction commit];
 }
 
 - (void)updatePhotoThumbnail:(PhotoPosition *)photoPosition {
+    if (EnsureMainThread(^{ [self updatePhotoThumbnail:photoPosition]; })) { return; }
+    
     SCNNode *existingNode = self.photoNodes[photoPosition.photoId];
     if (existingNode) {
         // Convert world space to canvas local
@@ -112,6 +149,8 @@
 }
 
 - (void)removePhotoThumbnail:(NSString *)photoId {
+    if (EnsureMainThread(^{ [self removePhotoThumbnail:photoId]; })) { return; }
+    
     SCNNode *node = self.photoNodes[photoId];
     if (node) {
         [node removeFromParentNode];
@@ -120,6 +159,8 @@
 }
 
 - (void)updateReticlePosition:(SCNVector3)position eulerAngles:(SCNVector3)eulerAngles {
+    if (EnsureMainThread(^{ [self updateReticlePosition:position eulerAngles:eulerAngles]; })) { return; }
+    
     if (!self.isInitialized) {
         return;
     }
@@ -130,10 +171,22 @@
 }
 
 - (void)resetCanvas {
-    [self.canvasNode removeFromParentNode];
+    if (EnsureMainThread(^{ [self resetCanvas]; })) { return; }
+    
+    // Replace entire scene with a fresh one to avoid residual nodes and threading issues
+    self.sceneView.scene = [SCNScene scene];
+    
+    // Reset state holders
     [self.photoNodes removeAllObjects];
-    self.isInitialized = NO;
+    self.canvasNode   = nil;
+    
+    // Create a new hidden reticle and add to fresh scene
+    self.reticleNode = [self createReticleNode];
     self.reticleNode.hidden = YES;
+    [self.sceneView.scene.rootNode addChildNode:self.reticleNode];
+    
+    self.isInitialized = NO;
+    return;
 }
 
 #pragma mark - Private Methods

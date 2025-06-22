@@ -78,8 +78,11 @@ static UIImage *PSRotateImage90CW(UIImage *image) {
             return;
         }
         
-        // Generate unique identifier for this photo
-        NSString *photoId = [[NSUUID UUID] UUIDString];
+        // Use provided photoId if available, otherwise generate
+        NSString *photoId = metadata[@"photoId"];
+        if (!photoId || [photoId length] == 0) {
+            photoId = [[NSUUID UUID] UUIDString];
+        }
         
         // Cache the image (will evict automatically if over limit)
         [self.photoCache setObject:image forKey:photoId];
@@ -216,8 +219,7 @@ static UIImage *PSRotateImage90CW(UIImage *image) {
         UIImage *image = [self.photoCache objectForKey:photoId];
         if (!image) { continue; }
         
-        // Rotate the image 90° clockwise to correct orientation for export
-        UIImage *exportImage = PSRotateImage90CW(image);
+        UIImage *exportImage = image; // keep original orientation
         
         // Save PNG
         dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -244,6 +246,14 @@ static UIImage *PSRotateImage90CW(UIImage *image) {
     dispatch_group_notify(group, dispatch_get_main_queue(), ^{
         completion([NSURL fileURLWithPath:tempDir], nil);
     });
+}
+
+#pragma mark - Session Management
+
+- (void)resetSession {
+    [self.photoCache removeAllObjects];
+    [self.allPhotoMetadata removeAllObjects];
+    self.sessionId = [[NSUUID UUID] UUIDString];
 }
 
 @end 

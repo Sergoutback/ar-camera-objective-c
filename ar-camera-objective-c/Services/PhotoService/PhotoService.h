@@ -4,17 +4,12 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-@protocol PhotoServiceProtocol <NSObject>
-
-- (void)requestPhotoLibraryPermission:(void (^)(BOOL))completion;
-- (void)savePhoto:(UIImage *)image metadata:(NSDictionary *)metadata completion:(void (^)(BOOL, NSError * _Nullable))completion;
-- (void)exportSessionData:(void (^)(NSURL * _Nullable sessionURL, NSError * _Nullable error))completion;
-
-@end
-
 @interface PhotoService : NSObject <PhotoServiceProtocol>
 
 - (instancetype)init;
+
+/// Clears cached images and metadata so a fresh capture session can begin.
+- (void)resetSession;
 
 @end
 

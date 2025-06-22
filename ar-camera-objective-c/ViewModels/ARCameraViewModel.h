@@ -95,6 +95,16 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)capturePhotoWithCompletion:(void (^)(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error))completion;
 
 /**
+ * @brief Captures a photo with a specific ID and current motion and location metadata
+ *
+ * @param photoId The ID of the photo to capture
+ * @param completion A block that is called when the photo capture is complete
+ *                  The block receives the captured image, metadata dictionary,
+ *                  and any error that occurred during capture
+ */
+- (void)capturePhotoWithId:(NSString *)photoId completion:(void (^)(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error))completion;
+
+/**
  * @brief Resets the camera session
  *
  * This method resets the AR session and clears all captured photo metadata.

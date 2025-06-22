@@ -166,7 +166,6 @@
         return;
     }
     
-    // Capture pixel buffer now (cheap) and perform heavy conversion off the main queue.
     CVPixelBufferRef pixelBuffer = currentFrame.capturedImage;
     if (!pixelBuffer) {
         NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
@@ -175,7 +174,7 @@
         if (completion) { completion(nil, error); }
         return;
     }
-    CFRetain(pixelBuffer); // retain for async usage
+    CFRetain(pixelBuffer); // retain for async conversion
     
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         CIImage *ciImage = [CIImage imageWithCVPixelBuffer:pixelBuffer];
@@ -201,12 +200,12 @@
         CGImageRelease(cgImage);
         dispatch_async(dispatch_get_main_queue(), ^{
             if (image) {
-                completion(image, nil);
+                if (completion) completion(image, nil);
             } else {
                 NSError *error = [NSError errorWithDomain:@"ARServiceErrorDomain"
                                                    code:7
                                                userInfo:@{NSLocalizedDescriptionKey: @"Failed to create final UIImage"}];
-                completion(nil, error);
+                if (completion) completion(nil, error);
             }
         });
     });
@@ -233,11 +232,14 @@
         simd_float4 worldPosition = cameraTransform.columns[3];
         photoNode.position = SCNVector3Make(worldPosition.x, worldPosition.y, worldPosition.z);
 
-        // 2. Orientation: use full camera yaw + pitch + roll
-        SCNVector3 camEuler = [self extractEulerAnglesFromMatrix:cameraTransform];
-        float pitch = camEuler.x;           // around X
-        float yaw   = camEuler.y + M_PI;    // flip 180° so the photo faces the camera
-        float roll  = camEuler.z + M_PI_2;  // compensate portrait -90° roll
+        // 2. Orientation: take ARKit-calculated Euler angles to keep real device roll
+        simd_float3 cameraEuler = self.sceneView.session.currentFrame.camera.eulerAngles;
+        SCNVector3 camEuler = SCNVector3Make(cameraEuler.x, cameraEuler.y, cameraEuler.z);
+
+        // Apply: pitch / yaw (+180° so the plane faces the user) / roll (+90° to compensate portrait sensor)
+        float pitch = camEuler.x;           // rotation around X (pitch)
+        float yaw   = camEuler.y;           // directly use yaw – SCNPlane already faces camera
+        float roll  = camEuler.z + M_PI_2;  // keep real tilt while fixing portrait orientation
 
         photoNode.eulerAngles = SCNVector3Make(pitch, yaw, roll);
 
@@ -463,16 +465,16 @@
     return frame ? frame.timestamp : 0;
 }
 
+- (ARFrame *)currentFrame {
+    return self.sceneView.session.currentFrame;
+}
+
 #pragma mark - Private Methods
 
 - (SCNVector3)extractEulerAnglesFromMatrix:(matrix_float4x4)matrix {
     // Extract rotation matrix
     float m11 = matrix.columns[0].x;
-    float m12 = matrix.columns[0].y;
-    float m13 = matrix.columns[0].z;
     float m21 = matrix.columns[1].x;
-    float m22 = matrix.columns[1].y;
-    float m23 = matrix.columns[1].z;
     float m31 = matrix.columns[2].x;
     float m32 = matrix.columns[2].y;
     float m33 = matrix.columns[2].z;

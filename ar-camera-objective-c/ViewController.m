@@ -10,6 +10,7 @@
 #import "Models/PhotoPosition.h"
 #import "Views/ErrorView.h"
 #import <AVFoundation/AVFoundation.h>
+#import "Services/CameraCaptureService/CameraCaptureService.h"
 
 @interface ViewController () <ARServiceDelegate>
 
@@ -21,7 +22,6 @@
 @property (nonatomic, strong) MotionService *motionService;
 @property (nonatomic, strong) LocationService *locationService;
 @property (nonatomic, strong) ARSpaceService *spaceService;
-@property (nonatomic, assign) NSInteger lastShareCount;
 @property (nonatomic, strong) ARAnchor *initialAnchor;
 @property (nonatomic, strong) ErrorView *errorView;
 @property (nonatomic, strong) UIButton *captureButton;
@@ -31,6 +31,8 @@
 @property (nonatomic, strong) UIView *scanningStatusView;
 @property (nonatomic, strong) UILabel *scanningStatusLabel;
 @property (nonatomic, strong) UIStackView *notificationStackView;
+@property (nonatomic, strong) CameraCaptureService *cameraService;
+@property (nonatomic, strong) NSMutableSet<NSString *> *capturedPhotoIds;
 
 @end
 
@@ -87,6 +89,10 @@
     
     // Initialize photo array
     self.photoMetaArray = [NSMutableArray array];
+    self.capturedPhotoIds = [NSMutableSet set];
+    
+    // Initialize camera service for high-resolution captures
+    self.cameraService = [[CameraCaptureService alloc] init];
     
     [self setupUI];
     [self requestCameraPermission];
@@ -112,7 +118,6 @@
         NSAssert(NO, @"ViewModel must be created in viewDidLoad before initializeAR is called");
         return;
     }
-    self.lastShareCount = 0;
     [self.viewModel startServices];
 }
 
@@ -266,17 +271,52 @@
         }
     }
     
-    [self.viewModel capturePhotoWithCompletion:^(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error) {
+    // Generate photoId now to reuse between AR and high-res
+    NSDateFormatter *df = [[NSDateFormatter alloc] init];
+    df.dateFormat = @"yyyyMMdd_HHmmss";
+    NSString *dateStr = [df stringFromDate:[NSDate date]];
+    NSString *photoId = [NSString stringWithFormat:@"Photo_%lu_%@", (unsigned long)self.photoMetaArray.count + 1, dateStr];
+
+    __weak typeof(self) weakSelf = self;
+    [self.viewModel capturePhotoWithId:photoId completion:^(PhotoPosition * _Nullable photoPosition, NSError * _Nullable error) {
         if (error) {
             NSLog(@"Error capturing photo: %@", error);
             return;
         }
-        
+
         if (photoPosition) {
-            [self.photoMetaArray addObject:photoPosition];
-            [self updatePhotoCounter];
-            [self.canvasView addPhotoThumbnail:photoPosition];
+            // Skip if we have already added this photoId (can happen if ARService duplicates callbacks)
+            if ([weakSelf.capturedPhotoIds containsObject:photoPosition.photoId]) {
+                NSLog(@"Duplicate photo %@ ignored", photoPosition.photoId);
+                return;
+            }
+            [weakSelf.capturedPhotoIds addObject:photoPosition.photoId];
+            [weakSelf.photoMetaArray addObject:photoPosition];
+            [weakSelf updatePhotoCounter];
+            [weakSelf.canvasView addPhotoThumbnail:photoPosition];
         }
+
+        // Pause AR session AFTER snapshot succeeds
+        [weakSelf.arService pauseARSession];
+
+        [weakSelf.cameraService captureHighResolutionPhoto:^(UIImage * _Nullable image, NSError * _Nullable error) {
+            // Restart AR session after slight delay to ensure camera resources are released
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [weakSelf.arService startARSession];
+            });
+            if (error) {
+                NSLog(@"High-res capture error: %@", error);
+                return;
+            }
+            if (image) {
+                NSDictionary *meta = @{ @"photoId": photoId };
+                [weakSelf.photoService savePhoto:image metadata:meta completion:^(BOOL success, NSError * _Nullable saveError) {
+                    if (saveError) {
+                        NSLog(@"Save high-res photo error: %@", saveError);
+                    }
+                }];
+            }
+        }];
     }];
 }
 
@@ -284,6 +324,8 @@
     [self.arService resetARSession];
     [self.canvasView resetCanvas];
     [self.photoMetaArray removeAllObjects];
+    [self.capturedPhotoIds removeAllObjects];
+    [self.photoService resetSession];
     [self updatePhotoCounter];
     // Сбросим статус сканирования
     self.scanningStatusLabel.text = @"Move camera to scan walls and floor";
@@ -294,7 +336,7 @@
 }
 
 - (void)exportButtonTapped {
-    // 1. Create a temporary folder
+    // 1. Create a temporary folder for AR snapshots & meta
     NSString *tempDir = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSError *error = nil;
@@ -303,20 +345,14 @@
         [self showAlertWithTitle:@"Export error" message:error.localizedDescription];
         return;
     }
-    // 2. Copy PNG files
-    NSMutableArray *activityItems = [NSMutableArray array];
+
+    // 1a. Collect positional metadata (no PNG thumbnails required)
     NSMutableArray *photoDicts = [NSMutableArray array];
     for (PhotoPosition *photo in self.photoMetaArray) {
-        if (photo.imagePath) {
-            NSString *fileName = [photo.imagePath lastPathComponent];
-            NSString *destPath = [tempDir stringByAppendingPathComponent:fileName];
-            [fileManager copyItemAtPath:photo.imagePath toPath:destPath error:nil];
-            [activityItems addObject:[NSURL fileURLWithPath:destPath]];
-        }
-        // Collecting metadata for JSON
         [photoDicts addObject:[photo toDictionary]];
     }
-    // 3. Generate JSON file
+
+    // 1b. Create JSON with positions
     NSDateFormatter *df = [[NSDateFormatter alloc] init];
     df.dateFormat = @"yyyyMMdd_HHmmss";
     NSString *dateStr = [df stringFromDate:[NSDate date]];
@@ -325,20 +361,82 @@
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:photoDicts options:NSJSONWritingPrettyPrinted error:&error];
     if (jsonData) {
         [jsonData writeToFile:jsonPath atomically:YES];
-        [activityItems addObject:[NSURL fileURLWithPath:jsonPath]];
     }
-    // 4. Call the sharing menu
-    UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:nil];
+
+    // 2. Ask PhotoService to export captured high-res images (PNG + HEIC)
     __weak typeof(self) weakSelf = self;
-    activityVC.completionWithItemsHandler = ^(UIActivityType __nullable activityType, BOOL completed, NSArray * __nullable returnedItems, NSError * __nullable activityError) {
-        
-        [fileManager removeItemAtPath:tempDir error:nil];
-        
+    [self.photoService exportSessionData:^(NSURL * _Nullable sessionURL, NSError * _Nullable exportError) {
+        if (exportError) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [weakSelf showAlertWithTitle:@"Export error" message:exportError.localizedDescription];
+            });
+            return;
+        }
+        // 3. Build payload directory containing only HEIC + JSON (exclude PNG)
+        NSString *payloadDir = [tempDir stringByAppendingPathComponent:@"payload"];
+        [fileManager createDirectoryAtPath:payloadDir withIntermediateDirectories:YES attributes:nil error:nil];
+
+        // Copy HEIC dir
+        NSURL *srcHEIC = [sessionURL URLByAppendingPathComponent:@"HEIC" isDirectory:YES];
+        NSURL *destHEIC = [NSURL fileURLWithPath:[payloadDir stringByAppendingPathComponent:@"HEIC"]];
+        [fileManager copyItemAtURL:srcHEIC toURL:destHEIC error:nil];
+
+        // Copy positional JSON we created earlier
+        [fileManager copyItemAtPath:jsonPath toPath:[payloadDir stringByAppendingPathComponent:jsonName] error:nil];
+
+        // Create ZIP archive with payload
+        NSString *zipName = [NSString stringWithFormat:@"ARSession_%@.zip", dateStr];
+        NSString *zipPath = [tempDir stringByAppendingPathComponent:zipName];
+        NSURL *zipURL = [NSURL fileURLWithPath:zipPath];
+        BOOL zipOK = NO;
+        SEL compressSel = NSSelectorFromString(@"compressItemAtURL:toURL:error:");
+        if ([fileManager respondsToSelector:compressSel]) {
+            typedef BOOL (*CompressIMP)(id, SEL, NSURL *, NSURL *, NSError *__autoreleasing *);
+            CompressIMP imp = (CompressIMP)[fileManager methodForSelector:compressSel];
+            NSError * __autoreleasing zipErr = nil;
+            zipOK = imp(fileManager, compressSel, [NSURL fileURLWithPath:payloadDir], zipURL, &zipErr);
+        }
+        NSArray *activityItems = nil;
+        if (zipOK) {
+            activityItems = @[zipURL];
+        } else {
+            // Zip not available on this iOS version – share individual files to avoid directory errors
+            NSMutableArray<NSURL *> *urls = [NSMutableArray array];
+            NSDirectoryEnumerator *enumerator = [fileManager enumeratorAtURL:[NSURL fileURLWithPath:payloadDir]
+                                                includingPropertiesForKeys:@[NSURLIsDirectoryKey]
+                                                                   options:0
+                                                              errorHandler:nil];
+            for (NSURL *url in enumerator) {
+                NSNumber *isDir = nil;
+                [url getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:nil];
+                if (isDir && !isDir.boolValue) {
+                    [urls addObject:url];
+                }
+            }
+            activityItems = urls;
+        }
+
+        // 4. Present share sheet on main queue
         dispatch_async(dispatch_get_main_queue(), ^{
-            [weakSelf resetButtonTapped];
+            UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:nil];
+
+            activityVC.completionWithItemsHandler = ^(UIActivityType _Nullable activityType, BOOL completed, NSArray * _Nullable returnedItems, NSError * _Nullable activityError) {
+                NSTimeInterval delay = 5.0; // give extension time to close files
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^{
+                    [fileManager removeItemAtPath:tempDir error:nil];
+                    [fileManager removeItemAtURL:sessionURL error:nil];
+                });
+
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (completed) {
+                        // Start fresh session only when user actually shared the files
+                        [weakSelf resetButtonTapped];
+                    }
+                });
+            };
+            [weakSelf presentViewController:activityVC animated:YES completion:nil];
         });
-    };
-    [self presentViewController:activityVC animated:YES completion:nil];
+    }];
 }
 
 - (void)showAlertWithTitle:(NSString *)title message:(NSString *)message {
