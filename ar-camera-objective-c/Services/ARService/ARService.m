@@ -487,4 +487,31 @@
     return SCNVector3Make(pitch, yaw, roll);
 }
 
+- (void)startARSessionWithWorldMap:(ARWorldMap * _Nullable)worldMap {
+    ARWorldTrackingConfiguration *configuration = [[ARWorldTrackingConfiguration alloc] init];
+    configuration.planeDetection = ARPlaneDetectionHorizontal | ARPlaneDetectionVertical;
+    configuration.environmentTexturing = AREnvironmentTexturingNone;
+    // Restore world map if provided and supported
+    if (worldMap) {
+        if (@available(iOS 12.0, *)) {
+            configuration.initialWorldMap = worldMap;
+        }
+    }
+    NSArray<ARVideoFormat *> *supportedFormats = [ARWorldTrackingConfiguration supportedVideoFormats];
+    if (supportedFormats.count > 0) {
+        configuration.videoFormat = supportedFormats.firstObject;
+    }
+
+    @try {
+        [self.sceneView.session runWithConfiguration:configuration options:0];
+        self.isSessionRunning = YES;
+        if ([self.delegate respondsToSelector:@selector(didUpdateARStatusMessage:)]) {
+            [self.delegate didUpdateARStatusMessage:@"ARSession restarted with restored map."];
+        }
+    } @catch (NSException *exception) {
+        NSLog(@"AR Session restart failed: %@", exception);
+        [self.sceneView.session runWithConfiguration:configuration options:ARSessionRunOptionResetTracking];
+    }
+}
+
 @end 

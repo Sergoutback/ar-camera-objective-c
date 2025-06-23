@@ -200,15 +200,21 @@ static inline BOOL EnsureMainThread(void (^block)(void)) {
     // Create plane geometry for photo
     SCNPlane *plane = [SCNPlane planeWithWidth:0.2 height:0.2];
     
-    // Create material with photo thumbnail
+    // Create material with photo thumbnail and rotate its texture -90° (counter-clockwise)
     SCNMaterial *material = [SCNMaterial material];
     material.diffuse.contents = photoPosition.thumbnail;
+    material.doubleSided = YES;
+    // Rotate texture by -90° without affecting node orientation
+    SCNMatrix4 rot = SCNMatrix4MakeRotation(-M_PI_2, 0, 0, 1);
+    // Flip vertically because UIKit images are Y-flipped relative to SceneKit UVs
+    SCNMatrix4 flip = SCNMatrix4MakeScale(1, -1, 1);
+    material.diffuse.contentsTransform = SCNMatrix4Mult(rot, flip);
     plane.materials = @[material];
     
     // Plane node rotated +90° around Z to compensate portrait roll (visual only)
     SCNNode *planeNode = [SCNNode nodeWithGeometry:plane];
-    // Rotate +90° to compensate roll, then +180° to flip upside-down image
-    planeNode.eulerAngles = SCNVector3Make(0, 0, M_PI_2 + M_PI);
+    // Flip plane to face the camera by rotating 180° around Y
+    planeNode.eulerAngles = SCNVector3Make(0, M_PI, 0);
     
     // Wrapper node that carries local position/euler relative to canvas
     SCNNode *wrapper = [SCNNode node];

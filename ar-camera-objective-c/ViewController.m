@@ -296,26 +296,30 @@
             [weakSelf.canvasView addPhotoThumbnail:photoPosition];
         }
 
-        // Pause AR session AFTER snapshot succeeds
-        [weakSelf.arService pauseARSession];
+        // Save current ARWorldMap before pausing to restore after hi-res capture
+        [weakSelf.arService.session getCurrentWorldMapWithCompletionHandler:^(ARWorldMap * _Nullable worldMap, NSError * _Nullable mapError) {
+            // Even if map is nil (not enough features), proceed with pause/capture
+            [weakSelf.arService pauseARSession];
 
-        [weakSelf.cameraService captureHighResolutionPhoto:^(UIImage * _Nullable image, NSError * _Nullable error) {
-            // Restart AR session after slight delay to ensure camera resources are released
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [weakSelf.arService startARSession];
-            });
-            if (error) {
-                NSLog(@"High-res capture error: %@", error);
-                return;
-            }
-            if (image) {
-                NSDictionary *meta = @{ @"photoId": photoId };
-                [weakSelf.photoService savePhoto:image metadata:meta completion:^(BOOL success, NSError * _Nullable saveError) {
-                    if (saveError) {
-                        NSLog(@"Save high-res photo error: %@", saveError);
-                    }
-                }];
-            }
+            [weakSelf.cameraService captureHighResolutionPhoto:^(UIImage * _Nullable image, NSError * _Nullable error) {
+                // Restart AR session restoring previously saved map
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [weakSelf.arService startARSessionWithWorldMap:worldMap];
+                });
+
+                if (error) {
+                    NSLog(@"High-res capture error: %@", error);
+                    return;
+                }
+                if (image) {
+                    NSDictionary *meta = @{ @"photoId": photoId };
+                    [weakSelf.photoService savePhoto:image metadata:meta completion:^(BOOL success, NSError * _Nullable saveError) {
+                        if (saveError) {
+                            NSLog(@"Save high-res photo error: %@", saveError);
+                        }
+                    }];
+                }
+            }];
         }];
     }];
 }

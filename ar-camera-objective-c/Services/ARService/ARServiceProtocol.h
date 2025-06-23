@@ -20,6 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (matrix_float3x3)currentCameraIntrinsics;
 - (simd_float3)currentCameraEulerAngles;
 - (NSTimeInterval)currentFrameTimestamp;
+- (void)startARSessionWithWorldMap:(nullable ARWorldMap *)worldMap;
 
 @end
 

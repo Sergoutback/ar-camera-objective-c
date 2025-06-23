@@ -12,9 +12,9 @@
 - (void)captureHighResolutionPhoto:(void (^)(UIImage * _Nullable image, NSError * _Nullable error))completion {
     // Store completion
     self.completionHandler = completion;
-    // Setup capture session
+    // Always use a dedicated photo session (simpler and ensures ≤12 MP on 48 MP sensors)
     self.session = [[AVCaptureSession alloc] init];
-    self.session.sessionPreset = AVCaptureSessionPresetInputPriority;
+    self.session.sessionPreset = AVCaptureSessionPresetPhoto;
     // Select back wide-angle camera
     AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
     if (!device) {
@@ -37,16 +37,34 @@
     if ([self.session canAddOutput:self.photoOutput]) {
         [self.session addOutput:self.photoOutput];
     }
-    // Select the format with the largest High-Res still dimensions (≈48/50 MP on modern devices)
+    // Choose the highest resolution ≤ 12 MP to save memory and storage (≈4000×3000)
+    const int64_t kMaxPixels = 12192768; // 12 MP
     CMVideoDimensions bestDimensions = (CMVideoDimensions){0,0};
     AVCaptureDeviceFormat *bestFormat = nil;
     for (AVCaptureDeviceFormat *format in device.formats) {
-        CMVideoDimensions dims = format.highResolutionStillImageDimensions;
+        // Use base format dimensions to estimate JPEG output size (highRes dims are always large on iPhone 15 Pro)
+        CMVideoDimensions dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+        if (dims.width == 0 || dims.height == 0) { continue; }
+
         int64_t pixels = (int64_t)dims.width * (int64_t)dims.height;
+        if (pixels > kMaxPixels) { continue; } // skip very large (e.g., 48 MP)
+
         int64_t bestPixels = (int64_t)bestDimensions.width * (int64_t)bestDimensions.height;
         if (pixels > bestPixels) {
             bestDimensions = dims;
             bestFormat = format;
+        }
+    }
+    // If nothing ≤12 MP found (unlikely), fall back to previous highest resolution
+    if (!bestFormat) {
+        for (AVCaptureDeviceFormat *format in device.formats) {
+            CMVideoDimensions dims = CMVideoFormatDescriptionGetDimensions(format.formatDescription);
+            int64_t pixels = (int64_t)dims.width * (int64_t)dims.height;
+            int64_t bestPixels = (int64_t)bestDimensions.width * (int64_t)bestDimensions.height;
+            if (pixels > bestPixels) {
+                bestDimensions = dims;
+                bestFormat = format;
+            }
         }
     }
     if (bestFormat) {
@@ -67,17 +85,15 @@
         // Wait small delay to allow exposure to settle
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             AVCapturePhotoSettings *settings = [AVCapturePhotoSettings photoSettings];
-            settings.highResolutionPhotoEnabled = YES;
+            settings.highResolutionPhotoEnabled = NO; // capture at sensor default (≈12 MP)
             if (@available(iOS 15.0, *)) {
-                AVCapturePhotoQualityPrioritization maxQ = self.photoOutput.maxPhotoQualityPrioritization;
-                settings.photoQualityPrioritization = (maxQ >= AVCapturePhotoQualityPrioritizationQuality) ? AVCapturePhotoQualityPrioritizationQuality : maxQ;
+                settings.photoQualityPrioritization = AVCapturePhotoQualityPrioritizationSpeed;
             }
             if ([self.photoOutput.availablePhotoCodecTypes containsObject:AVVideoCodecTypeHEVC]) {
                 settings = [AVCapturePhotoSettings photoSettingsWithFormat:@{AVVideoCodecKey: AVVideoCodecTypeHEVC}];
-                settings.highResolutionPhotoEnabled = YES;
+                settings.highResolutionPhotoEnabled = NO;
                 if (@available(iOS 15.0, *)) {
-                    AVCapturePhotoQualityPrioritization maxQ = self.photoOutput.maxPhotoQualityPrioritization;
-                    settings.photoQualityPrioritization = (maxQ >= AVCapturePhotoQualityPrioritizationQuality) ? AVCapturePhotoQualityPrioritizationQuality : maxQ;
+                    settings.photoQualityPrioritization = AVCapturePhotoQualityPrioritizationSpeed;
                 }
             }
             [self.photoOutput capturePhotoWithSettings:settings delegate:self];
